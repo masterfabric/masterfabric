@@ -1,45 +1,46 @@
 # MasterFabric Documentation
 
-Bu klasör MasterFabric platformunun tüm dokümantasyonunu içerir.
+This folder contains all documentation for the MasterFabric platform.
 
-## 📚 Dokümantasyon İndeksi
+## 📚 Documentation Index
 
-### 🏗️ Mimari ve Geliştirme
-- [**Architecture Analysis**](./ARCHITECTURE_ANALYSIS.md) - Platform mimarisi analizi
-- [**Development Status**](./DEVELOPMENT_STATUS.md) - Geliştirme durumu ve ilerleme
-- [**Implementation Summary**](./IMPLEMENTATION_SUMMARY.md) - Uygulama özeti
-- [**Implementation Complete**](./IMPLEMENTATION_COMPLETE.md) - Tamamlanan özellikler
+### 🏗️ Architecture & Development
+- [**Architecture Analysis**](./ARCHITECTURE_ANALYSIS.md) - Platform architecture analysis
+- [**Project Structure**](./PROJECT_STRUCTURE.md) - Detailed project structure and service breakdown
+- [**Development Status**](./DEVELOPMENT_STATUS.md) - Development status and progress
+- [**Implementation Summary**](./IMPLEMENTATION_SUMMARY.md) - Implementation summary
+- [**Implementation Complete**](./IMPLEMENTATION_COMPLETE.md) - Completed features
 
-### 🚀 Kurulum ve Test
-- [**Setup Guide**](./SETUP.md) - Kurulum rehberi
-- [**Quick Test Guide**](./QUICK_TEST_GUIDE.md) - Hızlı test rehberi
-- [**Testing Guide**](./TESTING_GUIDE.md) - Detaylı test rehberi
+### 🚀 Setup & Testing
+- [**Setup Guide**](./SETUP.md) - Installation guide
+- [**Quick Test Guide**](./QUICK_TEST_GUIDE.md) - Quick testing guide
+- [**Testing Guide**](./TESTING_GUIDE.md) - Detailed testing guide
 
-### 🔧 Sistem Yönetimi
-- [**Connection Management**](./CONNECTION_MANAGEMENT.md) - Veritabanı bağlantı yönetimi
-- [**Health Check System**](./HEALTH_CHECK_SYSTEM.md) - Sistem sağlık kontrolü
-- [**System Settings Guide**](./SYSTEM_SETTINGS_GUIDE.md) - Sistem ayarları rehberi
+### 🔧 System Management
+- [**Connection Management**](./CONNECTION_MANAGEMENT.md) - Database connection management
+- [**Health Check System**](./HEALTH_CHECK_SYSTEM.md) - System health monitoring
+- [**System Settings Guide**](./SYSTEM_SETTINGS_GUIDE.md) - System settings guide
 
-### 📊 API ve Schema
-- [**GraphQL Schema**](./GRAPHQL_SCHEMA.md) - GraphQL şema dokümantasyonu
+### 📊 API & Schema
+- [**GraphQL Schema**](./GRAPHQL_SCHEMA.md) - GraphQL schema documentation
 
-### 📈 Proje Aşamaları
-- [**Phase 1 Complete**](./PHASE1_COMPLETE.md) - Faz 1 tamamlandı
-- [**Phase 2 Status**](./PHASE2_STATUS.md) - Faz 2 durumu
+### 📈 Project Phases
+- [**Phase 1 Complete**](./PHASE1_COMPLETE.md) - Phase 1 completed
+- [**Phase 2 Status**](./PHASE2_STATUS.md) - Phase 2 status
 
-## 🎯 Hızlı Başlangıç
+## 🎯 Quick Start
 
-1. **Kurulum**: [Setup Guide](./SETUP.md) ile başlayın
-2. **Test**: [Quick Test Guide](./QUICK_TEST_GUIDE.md) ile test edin
-3. **Mimari**: [Architecture Analysis](./ARCHITECTURE_ANALYSIS.md) ile anlayın
+1. **Setup**: Start with [Setup Guide](./SETUP.md)
+2. **Test**: Test with [Quick Test Guide](./QUICK_TEST_GUIDE.md)
+3. **Architecture**: Understand with [Architecture Analysis](./ARCHITECTURE_ANALYSIS.md)
 
-## 📞 Destek
+## 📞 Support
 
-Dokümantasyon ile ilgili sorularınız için:
-- GitHub Issues kullanın
-- Development team ile iletişime geçin
+For documentation-related questions:
+- Use GitHub Issues
+- Contact the development team
 
 ---
 
-**Son Güncelleme**: 2024
-**Versiyon**: 2.0 - API Gateway Refactoring Complete
+**Last Updated**: 2025
+**Version**: 2.0 - True API Gateway with Enterprise Features Complete
