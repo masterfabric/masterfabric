@@ -1,0 +1,125 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create deployment backup
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          cd /opt/masterfabric
+          
+          # Create backup
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres_core pg_dump -U postgres masterfabric > backup_${timestamp}.sql
+          
+          # Backup volumes
+          docker run --rm -v masterfabric_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_data_${timestamp}.tar.gz -C /data .
+          
+          echo "✅ Backup created: backup_${timestamp}.sql and postgres_data_${timestamp}.tar.gz"
+
+    - name: Deploy to production server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.PROD_SSH_KEY }}
+        script: |
+          cd /opt/masterfabric
+          git pull origin main
+          
+          # Pull latest images
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+          
+          # Run database migrations
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm core-service npx prisma migrate deploy
+          
+          # Rolling update - start new containers
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build core-service
+          sleep 10
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build api-gateway
+          sleep 10
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build provisioning-service
+          sleep 10
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build tenant-runtime
+          sleep 10
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build dashboard
+          
+          # Wait for services to be healthy
+          sleep 60
+          
+          # Run comprehensive health checks
+          echo "🔍 Running health checks..."
+          curl -f http://localhost:3002/health || exit 1
+          curl -f http://localhost:3005/health || exit 1
+          curl -f http://localhost:3003/health || exit 1
+          curl -f http://localhost:3004/health || exit 1
+          curl -f http://localhost:3000 || exit 1
+          
+          # Test GraphQL endpoints
+          curl -f -X POST http://localhost:3002/graphql -H "Content-Type: application/json" -d '{"query":"{ __schema { types { name } } }"}' || exit 1
+          
+          # Clean up old images
+          docker image prune -f
+          
+          echo "✅ Production deployment completed successfully!"
+
+    - name: Notify deployment status
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        custom_payload: |
+          {
+            text: "🚀 Production Deployment",
+            attachments: [{
+              color: '${{ job.status == 'success' && 'good' || 'danger' }}',
+              fields: [{
+                title: 'Environment',
+                value: '${{ github.event.inputs.environment || 'production' }}',
+                short: true
+              }, {
+                title: 'Status',
+                value: '${{ job.status }}',
+                short: true
+              }]
+            }]
+          }

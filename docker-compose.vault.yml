@@ -1,0 +1,81 @@
+# HashiCorp Vault Docker Compose Configuration
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.vault.yml up
+
+version: '3.8'
+
+services:
+  # HashiCorp Vault
+  vault:
+    image: vault:1.15
+    container_name: masterfabric-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "masterfabric-root-token"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://0.0.0.0:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./scripts/vault-init.sh:/vault/init.sh:ro
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - masterfabric-network
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Vault UI (optional)
+  vault-ui:
+    image: vault:1.15
+    container_name: masterfabric-vault-ui
+    ports:
+      - "8201:8200"
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - masterfabric-network
+    command: ["vault", "server", "-dev", "-dev-root-token-id=masterfabric-root-token", "-dev-listen-address=0.0.0.0:8200"]
+
+  # Update services to use Vault
+  core-service:
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "${VAULT_TOKEN}"
+    depends_on:
+      vault:
+        condition: service_healthy
+
+  api-gateway:
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "${VAULT_TOKEN}"
+    depends_on:
+      vault:
+        condition: service_healthy
+
+  provisioning-service:
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "${VAULT_TOKEN}"
+    depends_on:
+      vault:
+        condition: service_healthy
+
+  tenant-runtime:
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "${VAULT_TOKEN}"
+    depends_on:
+      vault:
+        condition: service_healthy
+
+# Additional volumes for Vault
+volumes:
+  vault_data:
+    driver: local

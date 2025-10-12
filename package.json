@@ -1,0 +1,23 @@
+{
+  "name": "masterfabric",
+  "version": "1.0.0",
+  "description": "Multi-tenant BaaS Platform",
+  "private": true,
+  "workspaces": [
+    "services/*"
+  ],
+  "scripts": {
+    "dev:gateway": "cd services/api-gateway && npm run start:dev",
+    "dev:core": "cd services/core-service && npm run start:dev",
+    "dev:provisioning": "cd services/provisioning-service && npm run start:dev",
+    "dev:runtime": "cd services/tenant-runtime && npm run start:dev",
+    "dev:dashboard": "cd services/dashboard && npm run dev",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build"
+  },
+  "keywords": ["baas", "nestjs", "graphql", "multi-tenant"],
+  "author": "",
+  "license": "MIT"
+}
+

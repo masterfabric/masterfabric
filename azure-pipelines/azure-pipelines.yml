@@ -1,0 +1,246 @@
+# Azure DevOps Pipeline for MasterFabric
+# This pipeline builds, tests, and deploys the MasterFabric platform
+
+trigger:
+- main
+- develop
+
+variables:
+  vmImageName: 'ubuntu-latest'
+  registry: 'masterfabric.azurecr.io'
+  imageRepository: 'masterfabric'
+  containerRegistry: 'masterfabric.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/services'
+  tag: '$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: Build and test stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        npm install -g @nestjs/cli
+      displayName: 'Install NestJS CLI'
+
+    - task: Docker@2
+      displayName: 'Build and push images'
+      inputs:
+        command: 'buildAndPush'
+        repository: '$(imageRepository)/api-gateway'
+        dockerfile: '$(dockerfilePath)/api-gateway/Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build and push core-service'
+      inputs:
+        command: 'buildAndPush'
+        repository: '$(imageRepository)/core-service'
+        dockerfile: '$(dockerfilePath)/core-service/Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build and push provisioning-service'
+      inputs:
+        command: 'buildAndPush'
+        repository: '$(imageRepository)/provisioning-service'
+        dockerfile: '$(dockerfilePath)/provisioning-service/Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build and push tenant-runtime'
+      inputs:
+        command: 'buildAndPush'
+        repository: '$(imageRepository)/tenant-runtime'
+        dockerfile: '$(dockerfilePath)/tenant-runtime/Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build and push dashboard'
+      inputs:
+        command: 'buildAndPush'
+        repository: '$(imageRepository)/dashboard'
+        dockerfile: '$(dockerfilePath)/dashboard/Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+
+- stage: Test
+  displayName: Test stage
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: Test
+    displayName: Test
+    pool:
+      vmImage: $(vmImageName)
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd services/core-service
+        npm ci
+        npm run test
+      displayName: 'Test core-service'
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        JWT_SECRET: test-secret
+
+    - script: |
+        cd services/api-gateway
+        npm ci
+        npm run test
+      displayName: 'Test api-gateway'
+      env:
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+
+    - script: |
+        cd services/provisioning-service
+        npm ci
+        npm run test
+      displayName: 'Test provisioning-service'
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+
+    - script: |
+        cd services/tenant-runtime
+        npm ci
+        npm run test
+      displayName: 'Test tenant-runtime'
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        JWT_SECRET: test-secret
+
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Test
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployProduction
+    displayName: Deploy to Production
+    environment: 'production'
+    pool:
+      vmImage: $(vmImageName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureContainerInstances@0
+            displayName: 'Deploy to Azure Container Instances'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              resourceGroupName: '$(resourceGroupName)'
+              location: '$(location)'
+              imageName: '$(containerRegistry)/$(imageRepository)/api-gateway:$(tag)'
+              containerName: 'masterfabric-api-gateway'
+              ports: '3002:3002'
+              environmentVariables: |
+                REDIS_HOST=$(redisHost)
+                CORE_SERVICE_URL=$(coreServiceUrl)
+                PROVISIONING_SERVICE_URL=$(provisioningServiceUrl)
+                TENANT_RUNTIME_URL=$(tenantRuntimeUrl)
+
+          - task: AzureContainerInstances@0
+            displayName: 'Deploy core-service'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              resourceGroupName: '$(resourceGroupName)'
+              location: '$(location)'
+              imageName: '$(containerRegistry)/$(imageRepository)/core-service:$(tag)'
+              containerName: 'masterfabric-core-service'
+              ports: '3005:3005'
+              environmentVariables: |
+                DATABASE_URL=$(databaseUrl)
+                REDIS_HOST=$(redisHost)
+                JWT_SECRET=$(jwtSecret)
+
+          - task: AzureContainerInstances@0
+            displayName: 'Deploy provisioning-service'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              resourceGroupName: '$(resourceGroupName)'
+              location: '$(location)'
+              imageName: '$(containerRegistry)/$(imageRepository)/provisioning-service:$(tag)'
+              containerName: 'masterfabric-provisioning'
+              ports: '3003:3003'
+              environmentVariables: |
+                DATABASE_URL=$(databaseUrl)
+                REDIS_HOST=$(redisHost)
+                CLOUDFLARE_API_TOKEN=$(cloudflareApiToken)
+
+          - task: AzureContainerInstances@0
+            displayName: 'Deploy tenant-runtime'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              resourceGroupName: '$(resourceGroupName)'
+              location: '$(location)'
+              imageName: '$(containerRegistry)/$(imageRepository)/tenant-runtime:$(tag)'
+              containerName: 'masterfabric-tenant-runtime'
+              ports: '3004:3004'
+              environmentVariables: |
+                DATABASE_URL=$(databaseUrl)
+                REDIS_HOST=$(redisHost)
+                JWT_SECRET=$(jwtSecret)
+
+          - task: AzureContainerInstances@0
+            displayName: 'Deploy dashboard'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              resourceGroupName: '$(resourceGroupName)'
+              location: '$(location)'
+              imageName: '$(containerRegistry)/$(imageRepository)/dashboard:$(tag)'
+              containerName: 'masterfabric-dashboard'
+              ports: '3000:3000'
+              environmentVariables: |
+                NEXT_PUBLIC_API_GATEWAY_URL=$(apiGatewayUrl)
+                NEXT_PUBLIC_TENANT_RUNTIME_URL=$(tenantRuntimeUrl)
+
+          - script: |
+              echo "🚀 Deployment completed successfully!"
+              echo "📊 Dashboard: $(apiGatewayUrl)"
+              echo "🔗 API Gateway: $(apiGatewayUrl)/graphql"
+            displayName: 'Deployment Summary'

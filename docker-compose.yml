@@ -1,0 +1,183 @@
+services:
+  postgres_core:
+    image: postgres:15
+    container_name: masterfabric-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - masterfabric-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_cache:
+    image: redis:7-alpine
+    container_name: masterfabric-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - masterfabric-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  core-service:
+    build:
+      context: ./services/core-service
+      dockerfile: Dockerfile
+    container_name: masterfabric-core-service
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres_core:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      PORT: 3005
+    networks:
+      - masterfabric-network
+    volumes:
+      - ./services/core-service:/app
+      - /app/node_modules
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: masterfabric-api-gateway
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres_core:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+      core-service:
+        condition: service_started
+    environment:
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      CORE_SERVICE_URL: http://core-service:3005/graphql
+      PROVISIONING_SERVICE_URL: http://provisioning-service:3003/graphql
+      TENANT_RUNTIME_URL: http://tenant-runtime:3004/graphql
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
+      CACHE_TTL: ${CACHE_TTL}
+      PORT: 3002
+    networks:
+      - masterfabric-network
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+
+  provisioning-service:
+    build:
+      context: ./services/provisioning-service
+      dockerfile: Dockerfile
+    container_name: masterfabric-provisioning
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres_core:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID}
+      PORT: 3003
+    networks:
+      - masterfabric-network
+    volumes:
+      - ./services/provisioning-service:/app
+      - /app/node_modules
+
+  tenant-runtime:
+    build:
+      context: ./services/tenant-runtime
+      dockerfile: Dockerfile
+    container_name: masterfabric-tenant-runtime
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres_core:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3004
+    networks:
+      - masterfabric-network
+    volumes:
+      - ./services/tenant-runtime:/app
+      - /app/node_modules
+
+  dashboard:
+    build:
+      context: ./services/dashboard
+      dockerfile: Dockerfile
+    container_name: masterfabric-dashboard
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+      - tenant-runtime
+    environment:
+      NEXT_PUBLIC_API_GATEWAY_URL: http://api-gateway:3002/graphql
+      NEXT_PUBLIC_TENANT_RUNTIME_URL: http://tenant-runtime:3004/graphql
+      PORT: 3000
+    networks:
+      - masterfabric-network
+    volumes:
+      - ./services/dashboard:/app
+      - /app/node_modules
+      - /app/.next
+
+  # Watchtower for auto-updates
+  watchtower:
+    image: containrrr/watchtower
+    container_name: masterfabric-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_CLEANUP: true
+      WATCHTOWER_INCLUDE_STOPPED: true
+      WATCHTOWER_REVIVE_STOPPED: true
+      WATCHTOWER_LABEL_ENABLE: true
+      WATCHTOWER_ROLLING_RESTART: true
+    networks:
+      - masterfabric-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  masterfabric-network:
+    driver: bridge
+
