@@ -20,18 +20,20 @@ MasterFabric consists of five main services:
 - **Framework**: NestJS (TypeScript)
 - **Database**: PostgreSQL 15
 - **ORM**: Prisma
-- **Cache/Queue**: Redis
+- **Cache/Queue**: Redis 7
 - **API Protocol**: GraphQL (100% - platform + tenant data)
-- **Frontend**: Next.js 14 + shadcn/ui
-- **Infrastructure**: Docker Compose
+- **Frontend**: Next.js 15 + shadcn/ui
+- **Infrastructure**: Docker Compose v2 (with v1 compatibility)
+- **Secrets Management**: HashiCorp Vault (optional)
 - **Health Monitoring**: GraphQL-based health check system with real-time status updates
+- **CI/CD**: Azure DevOps Pipelines with Node.js 20
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- Docker & Docker Compose
+- Node.js 20+ (LTS)
+- Docker & Docker Compose (v2 recommended)
 - npm or yarn
 
 ### Installation
@@ -53,19 +55,61 @@ cd masterfabric
 # Install dependencies
 npm install
 
-# Configure environment variables
-```bash
-cp .env.example .env.local
-# Edit .env.local with your configuration
+# Create environment file (copy the configuration from Environment Variables section below)
+cat > .env.local << 'EOF'
+# =============================================================================
+# MasterFabric Environment Configuration
+# =============================================================================
+
+# Database Configuration
+DATABASE_URL=postgresql://postgres:postgres123@postgres_core:5432/masterfabric
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+POSTGRES_DB=masterfabric
+
+# Redis Configuration
+REDIS_HOST=redis_cache
+REDIS_PORT=6379
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRES_IN=7d
+
+# Service URLs
+CORE_SERVICE_URL=http://core-service:3005/graphql
+PROVISIONING_SERVICE_URL=http://provisioning-service:3003/graphql
+TENANT_RUNTIME_URL=http://tenant-runtime:3004/graphql
+
+# API Gateway Configuration
+API_GATEWAY_PORT=3002
+RATE_LIMIT_TTL=60000
+RATE_LIMIT_MAX=100
+CACHE_TTL=300
+
+# Dashboard Configuration
+NEXT_PUBLIC_API_GATEWAY_URL=http://localhost:3002/graphql
+NEXT_PUBLIC_TENANT_RUNTIME_URL=http://localhost:3004/graphql
+
+# Cloudflare (Optional - for DNS management)
+CLOUDFLARE_API_TOKEN=
+CLOUDFLARE_ZONE_ID=
+
+# Vault Configuration (Optional - for secrets management)
+VAULT_ADDR=http://localhost:8200
+VAULT_TOKEN=masterfabric-root-token
+EOF
 ```
 
 4. **Start Services**:
 ```bash
-# Development with hot reload
-docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up
+# Modern Docker Compose (recommended)
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up
 
-# Or use the provided script
+# Or use the provided startup script
 ./start-masterfabric.sh
+
+# For production
+./scripts/deploy.sh production
 ```
 
 ### Service URLs
@@ -92,14 +136,19 @@ For production deployment, see the comprehensive guides:
 ### Docker Commands
 
 ```bash
-# Development with hot reload
-docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up
+# Development with hot reload (modern Docker Compose)
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up
 
 # Production deployment
-docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up
 
 # With Vault for secrets management
-docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.vault.yml up
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.vault.yml up
+
+# Using provided scripts (recommended)
+./start-masterfabric.sh          # Start all services
+./reboot-masterfabric.sh         # Reboot with cleanup
+./scripts/deploy.sh production   # Production deployment
 ```
 
 ## Project Structure
@@ -113,7 +162,11 @@ docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.vau
 │   ├── tenant-runtime/       # GraphQL data engine
 │   └── dashboard/            # Admin UI
 ├── docs/deployment/          # Comprehensive deployment guides
-├── scripts/                  # Automation scripts
+├── scripts/                  # Modern automation scripts
+│   ├── setup-local.sh        # Local development setup
+│   ├── deploy.sh             # Production deployment
+│   ├── vault-init.sh         # Vault initialization
+│   └── migrate-secrets-to-vault.sh # Secrets migration
 ├── .github/workflows/        # GitHub Actions CI/CD
 ├── azure-pipelines/          # Azure DevOps pipelines
 ├── docker-compose.yml        # Base Docker configuration
@@ -123,6 +176,102 @@ docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.vau
 ├── .env.local               # Environment variables
 └── package.json
 ```
+
+## Modern Scripts & Automation
+
+MasterFabric includes professional, modern automation scripts with beautiful UI and comprehensive functionality:
+
+### Main Scripts
+
+#### 🚀 **start-masterfabric.sh** - Platform Startup
+```bash
+./start-masterfabric.sh          # Start all services
+./start-masterfabric.sh --help   # Show help
+./start-masterfabric.sh --stop   # Stop all services
+./start-masterfabric.sh --status # Check service status
+```
+
+**Features:**
+- ✅ **Modern Docker Compose Support**: Auto-detects Docker Compose v1/v2
+- ✅ **Progress Bars**: Visual progress indicators
+- ✅ **Health Checks**: Automatic service validation
+- ✅ **Professional UI**: Clean, colored output with MASTERFABRIC branding
+- ✅ **Prerequisites Check**: Validates all required tools
+
+#### 🔄 **reboot-masterfabric.sh** - Platform Reboot
+```bash
+./reboot-masterfabric.sh         # Full reboot with cleanup
+./reboot-masterfabric.sh --quick # Quick reboot (skip cache clearing)
+./reboot-masterfabric.sh --help  # Show help
+```
+
+**Features:**
+- ✅ **Complete Cleanup**: Kills processes, clears cache, removes unused Docker resources
+- ✅ **Health Monitoring**: Comprehensive health checks with retry logic
+- ✅ **Two Modes**: Full reboot or quick restart
+- ✅ **Service Validation**: Ensures all services are healthy before completion
+
+### Development Scripts
+
+#### 🛠️ **scripts/setup-local.sh** - Local Development Setup
+```bash
+./scripts/setup-local.sh
+```
+
+**Features:**
+- ✅ **Automated Setup**: Creates .env.local, installs dependencies, sets up database
+- ✅ **Docker Integration**: Builds images and starts services
+- ✅ **Health Validation**: Verifies all services are running
+- ✅ **Modern Practices**: Uses latest Docker Compose commands
+
+#### 🚀 **scripts/deploy.sh** - Production Deployment
+```bash
+./scripts/deploy.sh production    # Production deployment
+./scripts/deploy.sh development   # Development deployment
+./scripts/deploy.sh rollback      # Rollback to previous version
+./scripts/deploy.sh health        # Run health checks
+./scripts/deploy.sh backup        # Create backup only
+```
+
+**Features:**
+- ✅ **Rolling Updates**: Zero-downtime deployments
+- ✅ **Automated Backups**: Database and volume backups
+- ✅ **Health Validation**: Comprehensive service testing
+- ✅ **Rollback Support**: Quick rollback to previous version
+
+### Security Scripts
+
+#### 🔐 **scripts/vault-init.sh** - Vault Initialization
+```bash
+./scripts/vault-init.sh
+```
+
+**Features:**
+- ✅ **Secure Setup**: Initializes HashiCorp Vault with proper policies
+- ✅ **Service Tokens**: Generates individual tokens for each service
+- ✅ **Progress Tracking**: Visual progress indicators
+- ✅ **Professional Output**: Clean completion summary
+
+#### 🔄 **scripts/migrate-secrets-to-vault.sh** - Secrets Migration
+```bash
+./scripts/migrate-secrets-to-vault.sh
+```
+
+**Features:**
+- ✅ **Automated Migration**: Moves .env.local secrets to Vault
+- ✅ **Validation**: Checks Vault connectivity and .env.local existence
+- ✅ **Progress Tracking**: Visual progress for each service
+- ✅ **Error Handling**: Comprehensive error checking and reporting
+
+### Script Features
+
+All scripts include:
+- 🎨 **Professional UI**: Clean MASTERFABRIC branding with colors
+- 📊 **Progress Bars**: Visual feedback for long operations
+- 🔧 **Modern Docker Support**: Works with Docker Compose v1 and v2
+- ⚡ **Error Handling**: Comprehensive validation and error messages
+- 📝 **Help System**: Built-in help with usage examples
+- 🛡️ **Safety Checks**: Prerequisites validation and safety measures
 
 ## Key Features
 
@@ -244,13 +393,113 @@ npx prisma studio
 
 ### Environment Variables
 
-See `.env.local` file for all configuration options:
+Create a `.env.local` file in the project root with the following configuration:
 
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis connection string
-- `JWT_SECRET`: Secret key for JWT signing
-- `CLOUDFLARE_API_TOKEN`: Cloudflare API token
-- `CLOUDFLARE_ZONE_ID`: Cloudflare zone ID
+```bash
+# =============================================================================
+# MasterFabric Environment Configuration
+# =============================================================================
+
+# Database Configuration
+DATABASE_URL=postgresql://postgres:postgres123@postgres_core:5432/masterfabric
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+POSTGRES_DB=masterfabric
+
+# Redis Configuration
+REDIS_HOST=redis_cache
+REDIS_PORT=6379
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRES_IN=7d
+
+# Service URLs
+CORE_SERVICE_URL=http://core-service:3005/graphql
+PROVISIONING_SERVICE_URL=http://provisioning-service:3003/graphql
+TENANT_RUNTIME_URL=http://tenant-runtime:3004/graphql
+
+# API Gateway Configuration
+API_GATEWAY_PORT=3002
+RATE_LIMIT_TTL=60000
+RATE_LIMIT_MAX=100
+CACHE_TTL=300
+
+# Dashboard Configuration
+NEXT_PUBLIC_API_GATEWAY_URL=http://localhost:3002/graphql
+NEXT_PUBLIC_TENANT_RUNTIME_URL=http://localhost:3004/graphql
+
+# Cloudflare (Optional - for DNS management)
+CLOUDFLARE_API_TOKEN=
+CLOUDFLARE_ZONE_ID=
+
+# Vault Configuration (Optional - for secrets management)
+VAULT_ADDR=http://localhost:8200
+VAULT_TOKEN=masterfabric-root-token
+```
+
+### Quick Setup Commands
+
+```bash
+# Copy the example above to create your .env.local file
+cat > .env.local << 'EOF'
+# =============================================================================
+# MasterFabric Environment Configuration
+# =============================================================================
+
+# Database Configuration
+DATABASE_URL=postgresql://postgres:postgres123@postgres_core:5432/masterfabric
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+POSTGRES_DB=masterfabric
+
+# Redis Configuration
+REDIS_HOST=redis_cache
+REDIS_PORT=6379
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRES_IN=7d
+
+# Service URLs
+CORE_SERVICE_URL=http://core-service:3005/graphql
+PROVISIONING_SERVICE_URL=http://provisioning-service:3003/graphql
+TENANT_RUNTIME_URL=http://tenant-runtime:3004/graphql
+
+# API Gateway Configuration
+API_GATEWAY_PORT=3002
+RATE_LIMIT_TTL=60000
+RATE_LIMIT_MAX=100
+CACHE_TTL=300
+
+# Dashboard Configuration
+NEXT_PUBLIC_API_GATEWAY_URL=http://localhost:3002/graphql
+NEXT_PUBLIC_TENANT_RUNTIME_URL=http://localhost:3004/graphql
+
+# Cloudflare (Optional - for DNS management)
+CLOUDFLARE_API_TOKEN=
+CLOUDFLARE_ZONE_ID=
+
+# Vault Configuration (Optional - for secrets management)
+VAULT_ADDR=http://localhost:8200
+VAULT_TOKEN=masterfabric-root-token
+EOF
+```
+
+### Configuration Options
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres123@postgres_core:5432/masterfabric` |
+| `REDIS_HOST` | Redis server hostname | `redis_cache` |
+| `REDIS_PORT` | Redis server port | `6379` |
+| `JWT_SECRET` | Secret key for JWT signing | **Change in production!** |
+| `JWT_EXPIRES_IN` | JWT token expiration time | `7d` |
+| `RATE_LIMIT_TTL` | Rate limiting time window (ms) | `60000` |
+| `RATE_LIMIT_MAX` | Maximum requests per window | `100` |
+| `CACHE_TTL` | Cache time-to-live (seconds) | `300` |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token (optional) | - |
+| `CLOUDFLARE_ZONE_ID` | Cloudflare zone ID (optional) | - |
 
 ## Database Connection Management
 
