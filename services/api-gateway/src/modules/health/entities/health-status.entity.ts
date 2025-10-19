@@ -3,7 +3,7 @@ import { ObjectType, Field } from '@nestjs/graphql';
 @ObjectType()
 export class HealthStatus {
   @Field()
-  service: string;
+  name: string;
 
   @Field()
   status: string;
@@ -12,7 +12,7 @@ export class HealthStatus {
   message: string;
 
   @Field()
-  timestamp: string;
+  lastChecked: string;
 
   @Field({ nullable: true })
   responseTime?: number;
@@ -21,7 +21,7 @@ export class HealthStatus {
 @ObjectType()
 export class SystemHealth {
   @Field()
-  overall: string;
+  overallStatus: string;
 
   @Field(() => [HealthStatus])
   services: HealthStatus[];

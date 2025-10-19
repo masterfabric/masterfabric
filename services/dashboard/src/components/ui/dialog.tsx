@@ -2,16 +2,26 @@ import React from 'react';
 
 interface DialogProps {
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
 }
 
-export function Dialog({ open, onClose, children }: DialogProps) {
+export function Dialog({ open, onClose, onOpenChange, children }: DialogProps) {
   if (!open) return null;
 
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    }
+    if (onOpenChange) {
+      onOpenChange(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-background border border-foreground/20 max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClose}>
+      <div className="bg-background border border-foreground/20 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
@@ -28,10 +38,11 @@ export function DialogHeader({ children }: DialogHeaderProps) {
 
 interface DialogTitleProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function DialogTitle({ children }: DialogTitleProps) {
-  return <h2 className="text-xl font-medium text-foreground">{children}</h2>;
+export function DialogTitle({ children, className }: DialogTitleProps) {
+  return <h2 className={`text-xl font-medium text-foreground ${className || ''}`}>{children}</h2>;
 }
 
 interface DialogContentProps {

@@ -29,9 +29,7 @@ export class GracefulServiceLoader implements OnModuleInit {
     private serviceRegistry: ServiceRegistryService,
   ) {}
 
-  async onModuleInit() {
-    this.logger.log('🔄 Starting graceful service loading...');
-
+  private initializeServices() {
     // Servisleri tanımla
     this.services = [
       {
@@ -59,12 +57,34 @@ export class GracefulServiceLoader implements OnModuleInit {
         retryDelay: 3000,
       },
     ];
+  }
+
+  async onModuleInit() {
+    this.logger.log('🔄 Starting graceful service loading...');
+    
+    // Initialize services if not already done
+    if (this.services.length === 0) {
+      this.initializeServices();
+    }
 
     // Servisleri paralel olarak yükle
     await this.loadAllServices();
 
     // Başarısız servisleri arka planda denemeye devam et
     this.startBackgroundRetry();
+  }
+
+  /**
+   * Load services synchronously before module initialization
+   * This is used by the GraphQL module to ensure services are loaded
+   */
+  async loadServicesBeforeInit(): Promise<void> {
+    if (this.services.length === 0) {
+      this.initializeServices();
+    }
+    
+    this.logger.log('🔄 Pre-loading services for GraphQL Gateway...');
+    await this.loadAllServices();
   }
 
   private async loadAllServices() {

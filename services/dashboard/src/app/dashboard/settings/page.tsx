@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to prevent static generation issues with Apollo Client
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
@@ -64,7 +67,7 @@ interface SystemSettings {
   latencyThresholdMs: number;
 }
 
-type Tab = 'general' | 'users' | 'security' | 'database';
+type Tab = 'general' | 'users' | 'security' | 'database' | 'connections';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general');
@@ -262,6 +265,16 @@ export default function SettingsPage() {
             }`}
           >
             Database & Microservices
+          </button>
+          <button
+            onClick={() => setActiveTab('connections')}
+            className={`pb-3 text-sm transition-colors ${
+              activeTab === 'connections'
+                ? 'border-b-2 border-foreground text-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Connections
           </button>
         </div>
       </div>

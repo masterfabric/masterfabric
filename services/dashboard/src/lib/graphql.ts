@@ -22,14 +22,20 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
-// Create Apollo Client only on client-side
-export const apolloClient = typeof window !== 'undefined' 
-  ? new ApolloClient({
-      link: authLink.concat(httpLink),
-      cache: new InMemoryCache(),
-      ssrMode: false, // Disable SSR for Apollo Client
-    })
-  : null;
+// Create Apollo Client with better SSR handling
+export const apolloClient = new ApolloClient({
+  link: authLink.concat(httpLink),
+  cache: new InMemoryCache(),
+  ssrMode: typeof window === 'undefined',
+  defaultOptions: {
+    watchQuery: {
+      errorPolicy: 'ignore',
+    },
+    query: {
+      errorPolicy: 'ignore',
+    },
+  },
+});
 
 // GraphQL Queries and Mutations
 export const TENANT_REGISTER = gql`

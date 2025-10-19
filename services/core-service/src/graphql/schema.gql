@@ -2,3 +2,164 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type ApiKey {
+  createdAt: String!
+  id: ID!
+  key: String!
+  lastUsedAt: String
+  name: String!
+}
+
+type AuthResponse {
+  organization: OrganizationResponse
+  token: String!
+  user: UserResponse!
+}
+
+type ConnectionTestResult {
+  error: String
+  message: String!
+  responseTime: Float
+  success: Boolean!
+}
+
+input CreateProjectDto {
+  description: String
+  name: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type DeleteResult {
+  message: String!
+  success: Boolean!
+}
+
+input InviteDeveloperInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  createApiKey(name: String!, projectId: ID!): ApiKey!
+  createProject(input: CreateProjectDto!): Project!
+  deleteApiKey(id: ID!): ApiKey!
+  deleteOrganization(id: ID!): Organization!
+  deleteProject(id: ID!): Project!
+  deleteUser(id: String!): DeleteResult!
+  inviteDeveloper(input: InviteDeveloperInput!): User!
+  login(email: String!, password: String!): AuthResponse!
+  register(input: RegisterInput!): AuthResponse!
+  updateOrganization(id: ID!, input: UpdateOrganizationDto!): Organization!
+  updatePostgresConnection(input: UpdatePostgresConnectionDto!): Organization!
+  updateProject(id: ID!, input: UpdateProjectDto!): Project!
+  updateRedisConnection(input: UpdateRedisConnectionDto!): Organization!
+}
+
+type Organization {
+  _count: OrganizationCount!
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  slug: String!
+  status: String!
+  updatedAt: DateTime!
+}
+
+type OrganizationCount {
+  projects: Int!
+  users: Int!
+}
+
+type OrganizationResponse {
+  id: String!
+  name: String!
+  slug: String!
+  status: String!
+}
+
+type OrganizationStatus {
+  message: String
+  status: String!
+}
+
+type Project {
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  name: String!
+  organizationId: String!
+  redisUri: String
+  tenantDbUri: String
+  updatedAt: DateTime!
+}
+
+type Query {
+  myOrganization: Organization!
+  organization(id: ID!): Organization!
+  organizationStatus(id: ID!): OrganizationStatus!
+  organizationUsers: [User!]!
+  organizations: [Organization!]!
+  project(id: ID!): Project!
+  projectApiKeys(projectId: ID!): [ApiKey!]!
+  projects: [Project!]!
+  testPostgresConnection: ConnectionTestResult!
+  testRedisConnection: ConnectionTestResult!
+}
+
+input RegisterInput {
+  email: String!
+  organizationName: String!
+  organizationSlug: String!
+  password: String!
+}
+
+input UpdateOrganizationDto {
+  name: String!
+  slug: String!
+}
+
+input UpdatePostgresConnectionDto {
+  postgresDb: String
+  postgresHost: String
+  postgresPassword: String
+  postgresPort: Int
+  postgresUser: String
+}
+
+input UpdateProjectDto {
+  description: String
+  name: String
+}
+
+input UpdateRedisConnectionDto {
+  redisHost: String
+  redisPassword: String
+  redisPort: Int
+}
+
+type User {
+  createdAt: DateTime!
+  email: String!
+  id: ID!
+  invitedBy: String
+  role: UserRole!
+  updatedAt: DateTime
+}
+
+type UserResponse {
+  email: String!
+  id: String!
+  organizationId: String!
+  role: String!
+}
+
+"""User role enum"""
+enum UserRole {
+  CUSTOMER
+  DEVELOPER
+  OWNER
+}

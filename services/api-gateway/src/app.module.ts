@@ -130,8 +130,8 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
         authService: AuthService,
         serviceLoader: GracefulServiceLoader,
       ) => {
-        // Wait for services to load (2 seconds grace period)
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Pre-load services before initializing GraphQL Gateway
+        await serviceLoader.loadServicesBeforeInit();
 
         const loadedServices = serviceLoader.getLoadedServices();
         const failedServices = serviceLoader.getFailedServices();

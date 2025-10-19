@@ -42,10 +42,10 @@ export class HealthService {
       const responseTime = Date.now() - startTime;
       
       return {
-        service: serviceName,
+        name: serviceName,
         status: response.data.status === 'ok' ? 'healthy' : 'unhealthy',
         message: response.data.message || 'Service is running',
-        timestamp: new Date().toISOString(),
+        lastChecked: new Date().toISOString(),
         responseTime,
       };
     } catch (error: any) {
@@ -53,10 +53,10 @@ export class HealthService {
       this.logger.error(`Health check failed for ${serviceName}: ${error.message}`);
       
       return {
-        service: serviceName,
+        name: serviceName,
         status: 'unhealthy',
         message: error.message || 'Service is not reachable',
-        timestamp: new Date().toISOString(),
+        lastChecked: new Date().toISOString(),
         responseTime,
       };
     }
@@ -73,7 +73,7 @@ export class HealthService {
     const overall = allHealthy ? 'healthy' : 'unhealthy';
 
     return {
-      overall,
+      overallStatus: overall,
       services: healthChecks,
       timestamp: new Date().toISOString(),
     };
@@ -84,10 +84,10 @@ export class HealthService {
     
     if (!service) {
       return {
-        service: serviceName,
+        name: serviceName,
         status: 'unhealthy',
         message: 'Service not found',
-        timestamp: new Date().toISOString(),
+        lastChecked: new Date().toISOString(),
       };
     }
 

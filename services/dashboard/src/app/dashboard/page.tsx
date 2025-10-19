@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to prevent static generation issues with Apollo Client
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation } from '@apollo/client';

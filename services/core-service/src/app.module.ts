@@ -15,8 +15,18 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
 // Interceptors
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
+// Decorators
+import { Public } from './common/decorators/public.decorator';
+
+// Feature Modules
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+
 @Controller()
 export class HealthController {
+  @Public()
   @Get('health')
   getHealth() {
     return {
@@ -40,6 +50,7 @@ export class HealthController {
     };
   }
 
+  @Public()
   @Get('ready')
   getReady() {
     return {
@@ -110,12 +121,12 @@ export class HealthController {
     PrismaModule,
 
     // ========================================
-    // FEATURE MODULES (Eklenecek)
+    // FEATURE MODULES
     // ========================================
-    // AuthModule,
-    // UsersModule,
-    // OrganizationsModule,
-    // ProjectsModule,
+    AuthModule,
+    UsersModule,
+    OrganizationsModule,
+    ProjectsModule,
     // RolesModule,
     // PermissionsModule,
     // AuditModule,

@@ -8,11 +8,6 @@ interface ClientApolloProviderProps {
 }
 
 export function ClientApolloProvider({ children }: ClientApolloProviderProps) {
-  // Only render Apollo Provider on client-side
-  if (typeof window === 'undefined' || !apolloClient) {
-    return <>{children}</>;
-  }
-
   return (
     <ApolloProvider client={apolloClient}>
       {children}
