@@ -14,6 +14,17 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Determine docker compose command
+get_docker_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
 # Check prerequisites
 check_prerequisites() {
     echo -e "${BLUE}🔍 Checking prerequisites...${NC}"
@@ -25,7 +36,7 @@ check_prerequisites() {
     fi
     
     # Check Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
+    if ! docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
         echo -e "${RED}❌ Docker Compose is not installed. Please install Docker Compose.${NC}"
         exit 1
     fi
@@ -113,7 +124,8 @@ setup_database() {
     echo -e "${BLUE}🗄️  Setting up database...${NC}"
     
     # Start database services with environment file
-    docker-compose --env-file .env.local up -d postgres_core redis_cache
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd --env-file .env.local up -d postgres_core redis_cache
     
     # Wait for database to be ready
     echo -e "${BLUE}⏳ Waiting for database to be ready...${NC}"
@@ -133,7 +145,8 @@ build_images() {
     echo -e "${BLUE}🐳 Building Docker images...${NC}"
     
     # Build all service images with environment file
-    docker-compose --env-file .env.local build
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd --env-file .env.local build
     
     echo -e "${GREEN}✅ Docker images built${NC}"
 }
@@ -143,7 +156,8 @@ start_services() {
     echo -e "${BLUE}🚀 Starting services...${NC}"
     
     # Start all services with environment file
-    docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up -d
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up -d
     
     echo -e "${GREEN}✅ Services started${NC}"
 }

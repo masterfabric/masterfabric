@@ -17,6 +17,17 @@ ENVIRONMENT=${1:-production}
 BACKUP_DIR="/opt/backups/masterfabric"
 APP_DIR="/opt/masterfabric"
 
+# Determine docker compose command
+get_docker_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
 # Functions
 log() {
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
@@ -52,7 +63,7 @@ check_prerequisites() {
     fi
     
     # Check Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
+    if ! docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
         error "Docker Compose is not installed"
     fi
     
@@ -73,7 +84,8 @@ create_backup() {
     
     # Database backup
     log "Backing up database..."
-    docker-compose exec -T postgres_core pg_dump -U postgres masterfabric > "$BACKUP_DIR/db_$(date +%Y%m%d_%H%M%S).sql"
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd exec -T postgres_core pg_dump -U postgres masterfabric > "$BACKUP_DIR/db_$(date +%Y%m%d_%H%M%S).sql"
     
     # Volume backup
     log "Backing up volumes..."
@@ -90,10 +102,11 @@ create_backup() {
 pull_images() {
     log "Pulling latest images..."
     
+    local docker_compose_cmd=$(get_docker_compose_cmd)
     if [ "$ENVIRONMENT" = "production" ]; then
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml pull
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml pull
     else
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml pull
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml pull
     fi
     
     success "Images pulled successfully"
@@ -107,7 +120,8 @@ run_migrations() {
     sleep 10
     
     # Run migrations
-    docker-compose exec core-service npx prisma migrate deploy
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd exec core-service npx prisma migrate deploy
     
     success "Database migrations completed"
 }
@@ -121,22 +135,24 @@ deploy_services() {
         log "Performing rolling update..."
         
         # Update services one by one
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build core-service
+        local docker_compose_cmd=$(get_docker_compose_cmd)
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build core-service
         sleep 10
         
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build api-gateway
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build api-gateway
         sleep 10
         
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build provisioning-service
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build provisioning-service
         sleep 10
         
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build tenant-runtime
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build tenant-runtime
         sleep 10
         
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build dashboard
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build dashboard
     else
         # Development deployment
-        docker-compose --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+        local docker_compose_cmd=$(get_docker_compose_cmd)
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up -d --build
     fi
     
     success "Services deployed successfully"
@@ -213,18 +229,19 @@ rollback() {
     warning "Rolling back deployment..."
     
     # Stop current services
-    docker-compose down
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd down
     
     # Restore from backup
     if [ -f "$BACKUP_DIR/db_latest.sql" ]; then
         log "Restoring database..."
-        docker-compose up -d postgres_core
+        $docker_compose_cmd up -d postgres_core
         sleep 10
-        docker-compose exec -T postgres_core psql -U postgres masterfabric < "$BACKUP_DIR/db_latest.sql"
+        $docker_compose_cmd exec -T postgres_core psql -U postgres masterfabric < "$BACKUP_DIR/db_latest.sql"
     fi
     
     # Start previous version
-    docker-compose up -d
+    $docker_compose_cmd up -d
     
     success "Rollback completed"
 }

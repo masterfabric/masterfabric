@@ -1,30 +1,95 @@
 #!/bin/bash
 
-# Migrate .env.local secrets to HashiCorp Vault
-# This script reads .env.local and populates Vault with the secrets
+# =============================================================================
+# 🔄 MasterFabric Secrets Migration Script
+# =============================================================================
+# A modern, professional script to migrate secrets to HashiCorp Vault
+# Author: MasterFabric Team
+# Version: 2.0.0
+# =============================================================================
 
 set -e
 
+# Colors and styling
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Configuration
 VAULT_ADDR="http://localhost:8200"
 VAULT_TOKEN="masterfabric-root-token"
 
-echo "🔄 Migrating secrets from .env.local to Vault..."
+# Simple Header
+print_banner() {
+    echo -e "${CYAN}${BOLD}"
+    echo "=========================================="
+    echo "           MASTERFABRIC"
+    echo "=========================================="
+    echo -e "${NC}"
+    echo -e "${WHITE}${BOLD}🔄 Secrets Migration${NC}"
+    echo -e "${PURPLE}Secure • Automated • Production-Ready${NC}"
+    echo ""
+}
+
+# Progress bar function
+show_progress() {
+    local current=$1
+    local total=$2
+    local desc=$3
+    local percent=$((current * 100 / total))
+    local filled=$((percent / 2))
+    local empty=$((50 - filled))
+    
+    printf "\r${CYAN}[${NC}"
+    printf "%${filled}s" | tr ' ' '█'
+    printf "%${empty}s" | tr ' ' '░'
+    printf "${CYAN}] ${WHITE}${percent}%%${NC} ${YELLOW}${desc}${NC}"
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Determine docker compose command
+get_docker_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command_exists docker-compose; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
+print_banner
+echo -e "${BLUE}${BOLD}🔄 Migrating secrets from .env.local to Vault...${NC}"
 
 # Check if .env.local exists
 if [ ! -f ".env.local" ]; then
-    echo "❌ .env.local file not found!"
+    echo -e "${RED}❌ .env.local file not found!${NC}"
     exit 1
 fi
 
 # Check if Vault is running
+show_progress 1 6 "Checking Vault connection..."
 if ! curl -s "$VAULT_ADDR/v1/sys/health" > /dev/null; then
-    echo "❌ Vault is not running at $VAULT_ADDR"
-    echo "Please start Vault first: docker-compose -f docker-compose.yml -f docker-compose.vault.yml up vault"
+    echo ""
+    echo -e "${RED}❌ Vault is not running at $VAULT_ADDR${NC}"
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    echo -e "${YELLOW}Please start Vault first: $docker_compose_cmd -f docker-compose.yml -f docker-compose.vault.yml up vault${NC}"
     exit 1
 fi
+echo ""
 
 # Read .env.local and extract secrets
-echo "📖 Reading .env.local..."
+show_progress 2 6 "Reading .env.local..."
 
 # Database secrets
 POSTGRES_DB=$(grep "^POSTGRES_DB=" .env.local | cut -d'=' -f2 | tr -d '"')
@@ -59,8 +124,9 @@ NEXT_PUBLIC_TENANT_RUNTIME_URL=$(grep "^NEXT_PUBLIC_TENANT_RUNTIME_URL=" .env.lo
 
 # Construct DATABASE_URL
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}"
+echo ""
 
-echo "🔑 Updating Core Service secrets..."
+show_progress 3 6 "Updating Core Service secrets..."
 curl -s -X POST \
   -H "X-Vault-Token: $VAULT_TOKEN" \
   -d "{
@@ -74,7 +140,7 @@ curl -s -X POST \
   }" \
   "$VAULT_ADDR/v1/secret/data/core-service"
 
-echo "🔑 Updating API Gateway secrets..."
+show_progress 4 6 "Updating API Gateway secrets..."
 curl -s -X POST \
   -H "X-Vault-Token: $VAULT_TOKEN" \
   -d "{
@@ -91,7 +157,7 @@ curl -s -X POST \
   }" \
   "$VAULT_ADDR/v1/secret/data/api-gateway"
 
-echo "🔑 Updating Provisioning Service secrets..."
+show_progress 5 6 "Updating Provisioning Service secrets..."
 curl -s -X POST \
   -H "X-Vault-Token: $VAULT_TOKEN" \
   -d "{
@@ -105,7 +171,7 @@ curl -s -X POST \
   }" \
   "$VAULT_ADDR/v1/secret/data/provisioning-service"
 
-echo "🔑 Updating Tenant Runtime secrets..."
+show_progress 6 6 "Updating Tenant Runtime secrets..."
 curl -s -X POST \
   -H "X-Vault-Token: $VAULT_TOKEN" \
   -d "{
@@ -129,6 +195,12 @@ curl -s -X POST \
   }" \
   "$VAULT_ADDR/v1/secret/data/dashboard"
 
-echo "✅ Secrets migration completed!"
-echo "🔍 You can verify the secrets in Vault UI: http://localhost:8200"
-echo "🔑 Root token: $VAULT_TOKEN"
+echo ""
+echo -e "${GREEN}${BOLD}✅ Secrets migration completed!${NC}"
+echo ""
+echo -e "${PURPLE}${BOLD}📊 Migration Summary:${NC}"
+echo -e "${WHITE}${BOLD}🔍 Vault UI:${NC}        ${CYAN}http://localhost:8200${NC}"
+echo -e "${WHITE}${BOLD}🔑 Root Token:${NC}      ${CYAN}$VAULT_TOKEN${NC}"
+echo -e "${WHITE}${BOLD}📝 Status:${NC}          ${CYAN}All secrets migrated successfully${NC}"
+echo ""
+echo -e "${GREEN}${BOLD}🎊 Secrets are now securely stored in Vault! 🎊${NC}"

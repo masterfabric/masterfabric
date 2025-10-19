@@ -1,7 +1,5 @@
 # Production Docker Compose Configuration
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
-
-version: '3.8'
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
 
 services:
   # Override services for production

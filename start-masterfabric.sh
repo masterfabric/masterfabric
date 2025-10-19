@@ -19,30 +19,15 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# ASCII Art Banner
+# Simple Header
 print_banner() {
-    echo -e "${CYAN}"
-    echo ""
-    echo "  ╔═══════════════════════════════════════════════════════════════════╗"
-    echo "  ║                                                                   ║"
-    echo "  ║        ███╗   ███╗ █████╗ ███████╗████████╗███████╗██████╗       ║"
-    echo "  ║        ████╗ ████║██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗      ║"
-    echo "  ║        ██╔████╔██║███████║███████╗   ██║   █████╗  ██████╔╝      ║"
-    echo "  ║        ██║╚██╔╝██║██╔══██║╚════██║   ██║   ██╔══╝  ██╔══██╗      ║"
-    echo "  ║        ██║ ╚═╝ ██║██║  ██║███████║   ██║   ███████╗██║  ██║      ║"
-    echo "  ║        ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝      ║"
-    echo "  ║                                                                   ║"
-    echo "  ║        ███████╗ █████╗ ██████╗ ██████╗ ██╗ ██████╗               ║"
-    echo "  ║        ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██╔════╝               ║"
-    echo "  ║        █████╗  ███████║██████╔╝██████╔╝██║██║                    ║"
-    echo "  ║        ██╔══╝  ██╔══██║██╔══██╗██╔══██╗██║██║                    ║"
-    echo "  ║        ██║     ██║  ██║██████╔╝██████╔╝██║╚██████╗               ║"
-    echo "  ║        ╚═╝     ╚═╝  ╚═╝╚═════╝ ╚═════╝ ╚═╝ ╚═════╝               ║"
-    echo "  ║                                                                   ║"
-    echo "  ╚═══════════════════════════════════════════════════════════════════╝"
+    echo -e "${CYAN}${BOLD}"
+    echo "=========================================="
+    echo "           MASTERFABRIC"
+    echo "=========================================="
     echo -e "${NC}"
-    echo -e "${WHITE}${BOLD}              🚀 Backend-as-a-Service Platform 🚀${NC}"
-    echo -e "${PURPLE}              Multi-tenant • Scalable • Production-Ready${NC}"
+    echo -e "${WHITE}${BOLD}🚀 Backend-as-a-Service Platform${NC}"
+    echo -e "${PURPLE}Multi-tenant • Scalable • Production-Ready${NC}"
     echo ""
 }
 
@@ -66,6 +51,17 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Determine docker compose command
+get_docker_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command_exists docker-compose; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
 # Check prerequisites
 check_prerequisites() {
     echo -e "${BLUE}${BOLD}🔍 Checking Prerequisites...${NC}"
@@ -77,13 +73,15 @@ check_prerequisites() {
         missing=$((missing + 1))
     else
         echo -e "${GREEN}✅ Docker is installed${NC}"
-    fi
-    
-    if ! command_exists docker-compose; then
-        echo -e "${RED}❌ Docker Compose is not installed${NC}"
-        missing=$((missing + 1))
-    else
-        echo -e "${GREEN}✅ Docker Compose is installed${NC}"
+        # Check if docker compose is available (newer versions)
+        if docker compose version >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Docker Compose (plugin) is available${NC}"
+        elif command_exists docker-compose; then
+            echo -e "${GREEN}✅ Docker Compose (standalone) is available${NC}"
+        else
+            echo -e "${RED}❌ Docker Compose is not available${NC}"
+            missing=$((missing + 1))
+        fi
     fi
     
     if ! command_exists node; then
@@ -113,12 +111,14 @@ check_prerequisites() {
 start_infrastructure() {
     echo -e "${BLUE}${BOLD}🏗️  Starting Infrastructure Services...${NC}"
     
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    
     show_progress 1 4 "Starting PostgreSQL..."
-    docker-compose up -d postgres_core >/dev/null 2>&1
+    $docker_compose_cmd up -d postgres_core >/dev/null 2>&1
     sleep 2
     
     show_progress 2 4 "Starting Redis..."
-    docker-compose up -d redis_cache >/dev/null 2>&1
+    $docker_compose_cmd up -d redis_cache >/dev/null 2>&1
     sleep 2
     
     show_progress 3 4 "Waiting for services to be ready..."
@@ -269,7 +269,8 @@ stop_services() {
     pkill -f "prisma studio" >/dev/null 2>&1
     
     # Stop infrastructure services
-    docker-compose down >/dev/null 2>&1
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd down >/dev/null 2>&1
     
     echo -e "${GREEN}✅ All services have been stopped${NC}"
 }
@@ -280,7 +281,8 @@ check_status() {
     echo ""
     
     # Check infrastructure
-    if docker-compose ps | grep -q "Up"; then
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    if $docker_compose_cmd ps | grep -q "Up"; then
         echo -e "${GREEN}✅ Infrastructure services are running${NC}"
     else
         echo -e "${RED}❌ Infrastructure services are not running${NC}"

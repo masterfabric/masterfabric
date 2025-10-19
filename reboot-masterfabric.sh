@@ -19,30 +19,15 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# ASCII Art Banner
+# Simple Header
 print_banner() {
-    echo -e "${CYAN}"
-    echo ""
-    echo "  ╔═══════════════════════════════════════════════════════════════════╗"
-    echo "  ║                                                                   ║"
-    echo "  ║        ███╗   ███╗ █████╗ ███████╗████████╗███████╗██████╗       ║"
-    echo "  ║        ████╗ ████║██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗      ║"
-    echo "  ║        ██╔████╔██║███████║███████╗   ██║   █████╗  ██████╔╝      ║"
-    echo "  ║        ██║╚██╔╝██║██╔══██║╚════██║   ██║   ██╔══╝  ██╔══██╗      ║"
-    echo "  ║        ██║ ╚═╝ ██║██║  ██║███████║   ██║   ███████╗██║  ██║      ║"
-    echo "  ║        ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝      ║"
-    echo "  ║                                                                   ║"
-    echo "  ║        ███████╗ █████╗ ██████╗ ██████╗ ██╗ ██████╗               ║"
-    echo "  ║        ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██╔════╝               ║"
-    echo "  ║        █████╗  ███████║██████╔╝██████╔╝██║██║                    ║"
-    echo "  ║        ██╔══╝  ██╔══██║██╔══██╗██╔══██╗██║██║                    ║"
-    echo "  ║        ██║     ██║  ██║██████╔╝██████╔╝██║╚██████╗               ║"
-    echo "  ║        ╚═╝     ╚═╝  ╚═╝╚═════╝ ╚═════╝ ╚═╝ ╚═════╝               ║"
-    echo "  ║                                                                   ║"
-    echo "  ╚═══════════════════════════════════════════════════════════════════╝"
+    echo -e "${CYAN}${BOLD}"
+    echo "=========================================="
+    echo "           MASTERFABRIC"
+    echo "=========================================="
     echo -e "${NC}"
-    echo -e "${WHITE}${BOLD}              🔄 Platform Reboot & Restart 🔄${NC}"
-    echo -e "${PURPLE}              Clean • Fast • Reliable${NC}"
+    echo -e "${WHITE}${BOLD}🔄 Platform Reboot & Restart${NC}"
+    echo -e "${PURPLE}Clean • Fast • Reliable${NC}"
     echo ""
 }
 
@@ -61,6 +46,22 @@ show_progress() {
     printf "${CYAN}] ${WHITE}${percent}%%${NC} ${YELLOW}${desc}${NC}"
 }
 
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Determine docker compose command
+get_docker_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command_exists docker-compose; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
 # Kill all processes
 kill_all_processes() {
     echo -e "${RED}${BOLD}🛑 Stopping All Services...${NC}"
@@ -74,7 +75,8 @@ kill_all_processes() {
     sleep 2
     
     show_progress 2 6 "Killing Docker containers..."
-    docker-compose down >/dev/null 2>&1
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    $docker_compose_cmd down >/dev/null 2>&1
     sleep 2
     
     show_progress 3 6 "Cleaning up ports..."
@@ -121,12 +123,14 @@ clear_logs_cache() {
 restart_infrastructure() {
     echo -e "${BLUE}${BOLD}🏗️  Restarting Infrastructure...${NC}"
     
+    local docker_compose_cmd=$(get_docker_compose_cmd)
+    
     show_progress 1 3 "Starting PostgreSQL..."
-    docker-compose up -d postgres_core >/dev/null 2>&1
+    $docker_compose_cmd up -d postgres_core >/dev/null 2>&1
     sleep 3
     
     show_progress 2 3 "Starting Redis..."
-    docker-compose up -d redis_cache >/dev/null 2>&1
+    $docker_compose_cmd up -d redis_cache >/dev/null 2>&1
     sleep 3
     
     show_progress 3 3 "Infrastructure ready!"

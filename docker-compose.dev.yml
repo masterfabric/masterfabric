@@ -1,7 +1,5 @@
 # Development Docker Compose Configuration
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-version: '3.8'
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 services:
   # Override services for development
