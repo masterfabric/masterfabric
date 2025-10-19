@@ -13,6 +13,7 @@ import { HttpModule } from '@nestjs/axios';
 import { HealthModule } from './modules/health/health.module';
 import { RateLimitModule } from './modules/rate-limit/rate-limit.module';
 import { CacheModule } from './modules/cache/cache.module';
+import { DatabasesModule } from './modules/databases/databases.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ServiceRegistryModule } from './modules/service-registry/service-registry.module';
 import { HealthMonitorModule } from './modules/health-monitor/health-monitor.module';
@@ -105,7 +106,7 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
     // ========================================
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local'],
+      envFilePath: ['.env'],
       cache: true,
     }),
 
@@ -280,6 +281,7 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
     // CORE MODULES
     // ========================================
     CacheModule,
+    DatabasesModule,
     AuthModule,
     RateLimitModule,
     HealthModule,

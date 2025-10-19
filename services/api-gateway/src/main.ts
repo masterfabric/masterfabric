@@ -69,6 +69,7 @@ async function bootstrap() {
     logger.log('');
     logger.log('🔐 Authentication: JWT + API Key');
     logger.log('💾 Cache: Redis Master + SubMicroServices');
+    logger.log('🗄️  Databases: PostgreSQL (Required) + MongoDB (Optional)');
     logger.log('📊 Monitoring: Real-time Health Checks');
     logger.log('🔄 Circuit Breaker: Enabled');
     logger.log('═══════════════════════════════════════════════════');

@@ -4,6 +4,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { ServiceRegistryService } from '../service-registry/service-registry.service';
 import { RedisClusterService } from '../cache/redis-cluster.service';
+import { PostgreSQLClusterService } from '../databases/postgresql-cluster.service';
+import { MongoDBClusterService } from '../databases/mongodb-cluster.service';
 import { ConfigService } from '@nestjs/config';
 
 export enum ServiceStatus {
@@ -43,6 +45,8 @@ export class HealthMonitorService implements OnModuleInit {
   constructor(
     private serviceRegistry: ServiceRegistryService,
     private redisCluster: RedisClusterService,
+    private postgresCluster: PostgreSQLClusterService,
+    private mongoCluster: MongoDBClusterService,
     private configService: ConfigService,
   ) {}
 
@@ -136,6 +140,91 @@ export class HealthMonitorService implements OnModuleInit {
 
     } catch (error) {
       this.logger.error(`❌ Redis cluster health check failed: ${error.message}`);
+    }
+  }
+
+  @Interval(60000)
+  async checkDatabasesHealth() {
+    this.logger.debug('🔍 Checking Database health...');
+
+    try {
+      // Check PostgreSQL health
+      await this.checkPostgreSQLHealth();
+
+      // Check MongoDB health (optional)
+      await this.checkMongoDBHealth();
+
+    } catch (error) {
+      this.logger.error(`❌ Database health check failed: ${error.message}`);
+    }
+  }
+
+  private async checkPostgreSQLHealth() {
+    try {
+      const clusterStatus = await this.postgresCluster.getClusterStatus();
+      
+      if (!clusterStatus.primary.connected) {
+        this.logger.error('❌ CRITICAL: PostgreSQL Primary is DOWN!');
+        await this.sendAlert('postgres-primary-down', 'PostgreSQL Primary bağlantısı kesildi!');
+      }
+
+      const downReplicas = clusterStatus.replicas.filter(
+        replica => !replica.connected
+      );
+
+      if (downReplicas.length > 0) {
+        this.logger.warn(
+          `⚠️ ${downReplicas.length} PostgreSQL Replica(s) are DOWN`
+        );
+      }
+
+      await this.redisCluster.set('postgres-cluster-health', clusterStatus, 120);
+      
+      this.logger.log(
+        `✅ PostgreSQL Cluster: Primary=${clusterStatus.primary.connected ? 'UP' : 'DOWN'}, ` +
+        `Replicas=${clusterStatus.healthyReplicas}/${clusterStatus.totalReplicas}`
+      );
+
+    } catch (error) {
+      this.logger.error(`❌ PostgreSQL cluster health check failed: ${error.message}`);
+    }
+  }
+
+  private async checkMongoDBHealth() {
+    try {
+      // Check if MongoDB is configured
+      const isConfigured = await this.mongoCluster.isConfigured();
+      if (!isConfigured) {
+        this.logger.debug('📝 MongoDB not configured - skipping health check');
+        return;
+      }
+
+      const clusterStatus = await this.mongoCluster.getClusterStatus();
+      
+      if (!clusterStatus.primary.connected) {
+        this.logger.warn('⚠️ MongoDB Primary is DOWN! (Optional service)');
+        await this.sendAlert('mongo-primary-down', 'MongoDB Primary bağlantısı kesildi! (Opsiyonel servis)');
+      }
+
+      const downReplicas = clusterStatus.replicas.filter(
+        replica => !replica.connected
+      );
+
+      if (downReplicas.length > 0) {
+        this.logger.warn(
+          `⚠️ ${downReplicas.length} MongoDB Replica(s) are DOWN (Optional service)`
+        );
+      }
+
+      await this.redisCluster.set('mongo-cluster-health', clusterStatus, 120);
+      
+      this.logger.log(
+        `✅ MongoDB Cluster: Primary=${clusterStatus.primary.connected ? 'UP' : 'DOWN'}, ` +
+        `Replicas=${clusterStatus.healthyReplicas}/${clusterStatus.totalReplicas} (Optional)`
+      );
+
+    } catch (error) {
+      this.logger.warn(`⚠️ MongoDB cluster health check failed: ${error.message} (Optional service)`);
     }
   }
 
