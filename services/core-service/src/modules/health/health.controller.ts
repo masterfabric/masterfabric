@@ -11,7 +11,7 @@ export class HealthController {
     return {
       ...health,
       license: 'GNU AGPL-3.0',
-      copyright: '© 2024 MASTERFABRIC Bilişim Teknolojileri A.Ş.',
+      copyright: '© 2025 MASTERFABRIC Information Technologies Inc.',
       author: '@gurkanfikretgunak',
       repository: 'https://github.com/masterfabric/masterfabric'
     };

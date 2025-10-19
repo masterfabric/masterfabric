@@ -80,7 +80,7 @@ export default function Home() {
                 Licensed under GNU AGPL-3.0
               </p>
               <p className="text-sm text-muted-foreground">
-                © 2024 MASTERFABRIC Bilişim Teknolojileri A.Ş.
+                © 2025 MASTERFABRIC Information Technologies Inc.
               </p>
             </div>
             <div>

@@ -30,7 +30,7 @@ export class GracefulServiceLoader implements OnModuleInit {
   ) {}
 
   private initializeServices() {
-    // Servisleri tanımla
+    // Define services
     this.services = [
       {
         name: 'core',
@@ -67,10 +67,10 @@ export class GracefulServiceLoader implements OnModuleInit {
       this.initializeServices();
     }
 
-    // Servisleri paralel olarak yükle
+    // Load services in parallel
     await this.loadAllServices();
 
-    // Başarısız servisleri arka planda denemeye devam et
+    // Continue retrying failed services in background
     this.startBackgroundRetry();
   }
 

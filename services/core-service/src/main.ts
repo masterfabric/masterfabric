@@ -80,7 +80,7 @@ async function bootstrap() {
     logger.log('═══════════════════════════════════════════════════');
     logger.log('');
     logger.log('📖 License: GNU AGPL-3.0');
-    logger.log('© 2025 MASTERFABRIC Bilişim Teknolojileri A.Ş.');
+    logger.log('© 2025 MASTERFABRIC Information Technologies Inc.');
     logger.log('👨‍💻 Author: @gurkanfikretgunak');
     logger.log('');
     

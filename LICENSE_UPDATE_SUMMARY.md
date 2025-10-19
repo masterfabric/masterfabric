@@ -59,7 +59,7 @@ The LICENSE file has been successfully updated from the Expo project to the Mast
 ```html
 <meta name="masterfabric-license" content="AGPL-3.0">
 <meta name="masterfabric-repository" content="https://github.com/masterfabric/masterfabric">
-<meta name="masterfabric-company" content="MASTERFABRIC Bilişim Teknolojileri A.Ş.">
+<meta name="masterfabric-company" content="MASTERFABRIC Information Technologies Inc.">
 <meta name="masterfabric-author" content="@gurkanfikretgunak">
 ```
 

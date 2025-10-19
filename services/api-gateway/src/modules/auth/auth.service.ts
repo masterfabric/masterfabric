@@ -29,7 +29,7 @@ export class AuthService {
     private configService: ConfigService,
     private redisCluster: RedisClusterService,
   ) {
-    // Service API Keys yükle
+    // Load Service API Keys
     this.serviceApiKeys = new Map([
       ['core', this.configService.get('CORE_SERVICE_API_KEY')],
       ['provisioning', this.configService.get('PROVISIONING_SERVICE_API_KEY')],

@@ -42,7 +42,7 @@ export class HealthController {
       message: 'API Gateway is running',
       timestamp: new Date().toISOString(),
       license: 'GNU AGPL-3.0',
-      copyright: '© 2025 MASTERFABRIC Bilişim Teknolojileri A.Ş.',
+      copyright: '© 2025 MASTERFABRIC Information Technologies Inc.',
       author: '@gurkanfikretgunak',
       repository: 'https://github.com/masterfabric/masterfabric',
     };
@@ -171,7 +171,7 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
           console.warn('   API Gateway running with minimal Federation schema');
           console.warn('   Services will auto-connect when ready\n');
           
-          // ✅ Düzeltilmiş minimal Apollo Federation schema
+          // ✅ Fixed minimal Apollo Federation schema
           const minimalFederationSchema = `
             schema
               @link(url: "https://specs.apollo.dev/link/v1.0")

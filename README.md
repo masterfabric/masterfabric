@@ -588,7 +588,7 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) with additional terms specific to MasterFabric.
 
-**Copyright (C) 2024 MASTERFABRIC Bilişim Teknolojileri A.Ş. & Gürkan Fikret Günak**
+**Copyright (C) 2025 MASTERFABRIC Information Technologies Inc. & Gurkan Fikret Gunak**
 
 ### Key Points:
 - **Open Source**: Free to use, modify, and distribute under AGPL-3.0

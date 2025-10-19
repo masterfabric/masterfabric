@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   other: {
     "masterfabric-license": "AGPL-3.0",
     "masterfabric-repository": "https://github.com/masterfabric/masterfabric",
-    "masterfabric-company": "MASTERFABRIC Bilişim Teknolojileri A.Ş.",
+    "masterfabric-company": "MASTERFABRIC Information Technologies Inc.",
     "masterfabric-author": "@gurkanfikretgunak",
   },
 };
