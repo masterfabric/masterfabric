@@ -25,6 +25,9 @@ export default function Home() {
             <Button asChild variant="ghost" size="lg" className="text-foreground hover:bg-muted">
               <Link href="/register">Create Account</Link>
             </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/test">Developer Test Suite</Link>
+            </Button>
           </div>
         </div>
 
@@ -50,54 +53,115 @@ export default function Home() {
               Complete data isolation ensures security and compliance.
             </p>
           </div>
-
-          <div>
-            <h2 className="text-2xl font-light text-foreground mb-4">Real-time Capabilities</h2>
-            <p className="text-base text-muted-foreground mb-4">
-              WebSocket subscriptions and live data updates
-            </p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Built-in real-time capabilities with WebSocket support for live data synchronization. 
-              Keep your applications in sync across all connected clients.
-            </p>
-          </div>
         </div>
       </div>
       
       {/* Footer */}
-      <footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-4xl mx-auto px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">MasterFabric</h3>
-              <p className="text-sm text-muted-foreground">
-                Multi-tenant Backend-as-a-Service Platform
-              </p>
+      <footer className="border-t bg-muted/50 mt-16">
+        <div className="max-w-6xl mx-auto px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* MasterFabric Info */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">MasterFabric</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Modern microservices platform for scalable applications
+                </p>
+              </div>
+              <div className="flex space-x-4">
+                <a 
+                  href="https://github.com/masterfabric" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  GitHub
+                </a>
+                <a 
+                  href="https://docs.masterfabric.dev" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Docs
+                </a>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">License</h3>
-              <p className="text-sm text-muted-foreground">
-                Licensed under GNU AGPL-3.0
-              </p>
-              <p className="text-sm text-muted-foreground">
-                © 2025 MASTERFABRIC Information Technologies Inc.
-              </p>
+
+            {/* Services */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">Services</h3>
+              <div className="space-y-2 text-sm">
+                <div className="text-muted-foreground">API Gateway</div>
+                <div className="text-muted-foreground">Core Service</div>
+                <div className="text-muted-foreground">Tenant Runtime</div>
+                <div className="text-muted-foreground">Provisioning</div>
+                <div className="text-muted-foreground">Dashboard</div>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Contact</h3>
-              <p className="text-sm text-muted-foreground">
-                Author: @gurkanfikretgunak
-              </p>
-              <p className="text-sm text-muted-foreground">
-                License: license@masterfabric.co
-              </p>
+
+            {/* Development */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">Development</h3>
+              <div className="space-y-2 text-sm">
+                <div className="text-muted-foreground">Test Suite</div>
+                <div className="text-muted-foreground">Component Library</div>
+                <div className="text-muted-foreground">API Testing</div>
+                <div className="text-muted-foreground">Health Monitoring</div>
+              </div>
+            </div>
+
+            {/* System Status */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">System Status</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-muted-foreground">Dashboard</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span className="text-muted-foreground">API Gateway</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-muted-foreground">Core Service</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span className="text-muted-foreground">Tenant Runtime</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t">
-            <p className="text-xs text-muted-foreground text-center">
-              This software is provided under the GNU Affero General Public License v3.0 with additional terms.
-              Forking this repository requires contact with MASTERFABRIC within 10 days.
-            </p>
+
+          {/* Bottom Section */}
+          <div className="border-t mt-8 pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <div className="text-sm text-muted-foreground">
+                © 2025 MasterFabric. Built with Next.js, TypeScript, and Tailwind CSS.
+              </div>
+              <div className="flex space-x-6 text-sm">
+                <a 
+                  href="/privacy" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Privacy
+                </a>
+                <a 
+                  href="/terms" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Terms
+                </a>
+                <a 
+                  href="/support" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Support
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

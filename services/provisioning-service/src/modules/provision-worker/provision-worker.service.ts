@@ -15,81 +15,122 @@ export class ProvisionWorkerService {
     this.logger.log(`Starting provisioning for organization: ${slug}`);
 
     try {
-      // Execute all provisioning steps in a transaction
-      await this.prisma.$transaction(async (tx) => {
-        // 1. Create default tenant tables (in shared DB with organization_id filtering)
-        await this.createDefaultTenantTables(tx, organizationId);
-
-        // 2. Create project record with tenant configuration
-        await tx.project.create({
-          data: {
-            name: `${slug} Project`,
-            description: `Default project for ${slug} organization`,
+      // Create provisioning job record
+      const job = await this.prisma.provisioningJob.create({
+        data: {
+          tenantId: organizationId,
+          type: 'organization',
+          status: 'in_progress',
+          configuration: {
+            slug,
             organizationId,
-            tenantDbUri: process.env.DATABASE_URL, // Same as core DB
-            redisUri: process.env.REDIS_URL,
+          },
+        },
+      });
+
+      try {
+        // 1. Create Cloudflare DNS record
+        await this.cloudflareService.createCNAME(slug);
+        
+        // 2. Update job status
+        await this.prisma.provisioningJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'completed',
+            completedAt: new Date(),
+            result: {
+              slug,
+              dnsCreated: true,
+              timestamp: new Date().toISOString(),
+            },
           },
         });
 
-        // 3. Update organization status to READY
-        await tx.organization.update({
-          where: { id: organizationId },
-          data: { status: 'READY' },
-        });
-      });
-
-      // 4. Create Cloudflare DNS record (outside transaction, non-critical)
-      try {
-        await this.cloudflareService.createCNAME(slug);
+        this.logger.log(`Successfully provisioned organization: ${slug}`);
       } catch (error) {
-        this.logger.warn(`DNS creation failed for ${slug}, but organization is still provisioned:`, error.message);
-      }
+        // Update job with error
+        await this.prisma.provisioningJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'failed',
+            error: error.message,
+            completedAt: new Date(),
+          },
+        });
 
-      this.logger.log(`Successfully provisioned organization: ${slug}`);
+        throw error;
+      }
     } catch (error) {
       this.logger.error(`Provisioning failed for ${slug}:`, error.message);
-      
-      // Mark organization as FAILED
-      await this.prisma.organization.update({
-        where: { id: organizationId },
-        data: { status: 'FAILED' },
-      });
-
       throw error;
     }
   }
 
-  private async createDefaultTenantTables(tx: any, organizationId: string): Promise<void> {
-    this.logger.log(`Creating default tenant tables for organization: ${organizationId}`);
+  async createDnsRecord(domain: string, subdomain: string, type: string, value: string, tenantId: string): Promise<void> {
+    this.logger.log(`Creating DNS record: ${subdomain}.${domain} -> ${value}`);
 
-    // Sanitize organizationId by replacing hyphens with underscores for table name
-    const tableSuffix = organizationId.replace(/-/g, '_');
+    try {
+      // Create DNS record job
+      const job = await this.prisma.provisioningJob.create({
+        data: {
+          tenantId,
+          type: 'dns_record',
+          status: 'in_progress',
+          configuration: {
+            domain,
+            subdomain,
+            type,
+            value,
+          },
+        },
+      });
 
-    // Create the default users table for tenant authentication
-    // This will be used by the tenant-runtime for end-user authentication
-    await tx.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS users_${tableSuffix} (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        email VARCHAR UNIQUE NOT NULL,
-        password_hash VARCHAR NOT NULL,
-        organization_id UUID NOT NULL DEFAULT '${organizationId}',
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      );
-    `);
+      try {
+        // Create DNS record in provider (Cloudflare)
+        const recordId = await this.cloudflareService.createRecord(subdomain, domain, type, value);
 
-    // Create an index on email for faster lookups
-    await tx.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS idx_users_${tableSuffix}_email 
-      ON users_${tableSuffix} (email);
-    `);
+        // Store in database
+        await this.prisma.dnsRecord.create({
+          data: {
+            tenantId,
+            domain,
+            subdomain,
+            type,
+            value,
+            status: 'active',
+            cloudflareId: recordId,
+          },
+        });
 
-    // Create an index on organization_id (though it's always the same for this table)
-    await tx.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS idx_users_${tableSuffix}_org_id 
-      ON users_${tableSuffix} (organization_id);
-    `);
+        // Update job
+        await this.prisma.provisioningJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'completed',
+            completedAt: new Date(),
+            result: {
+              recordId,
+              created: true,
+            },
+          },
+        });
 
-    this.logger.log(`Created default tenant tables for organization: ${organizationId}`);
+        this.logger.log(`Successfully created DNS record: ${subdomain}.${domain}`);
+      } catch (error) {
+        await this.prisma.provisioningJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'failed',
+            error: error.message,
+            completedAt: new Date(),
+          },
+        });
+
+        throw error;
+      }
+    } catch (error) {
+      this.logger.error(`Failed to create DNS record:`, error.message);
+      throw error;
+    }
   }
 }

@@ -98,6 +98,7 @@ type Project {
 }
 
 type Query {
+  developerProjects: [Project!]!
   myOrganization: Organization!
   organization(id: ID!): Organization!
   organizationStatus(id: ID!): OrganizationStatus!
@@ -106,6 +107,7 @@ type Query {
   project(id: ID!): Project!
   projectApiKeys(projectId: ID!): [ApiKey!]!
   projects: [Project!]!
+  systemHealth: SystemHealth!
   testPostgresConnection: ConnectionTestResult!
   testRedisConnection: ConnectionTestResult!
 }
@@ -117,17 +119,31 @@ input RegisterInput {
   password: String!
 }
 
+type ServiceHealth {
+  lastChecked: String
+  message: String
+  name: String!
+  responseTime: Float
+  status: String!
+}
+
+type SystemHealth {
+  overallStatus: String!
+  services: [ServiceHealth!]!
+  timestamp: String!
+}
+
 input UpdateOrganizationDto {
   name: String!
   slug: String!
 }
 
 input UpdatePostgresConnectionDto {
-  postgresDb: String
+  postgresDatabase: String
   postgresHost: String
   postgresPassword: String
   postgresPort: Int
-  postgresUser: String
+  postgresUsername: String
 }
 
 input UpdateProjectDto {

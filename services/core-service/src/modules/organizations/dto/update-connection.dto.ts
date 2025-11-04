@@ -18,12 +18,12 @@ export class UpdatePostgresConnectionDto {
   @Field({ nullable: true })
   @IsString()
   @IsOptional()
-  postgresDb?: string;
+  postgresDatabase?: string;
 
   @Field({ nullable: true })
   @IsString()
   @IsOptional()
-  postgresUser?: string;
+  postgresUsername?: string;
 
   @Field({ nullable: true })
   @IsString()

@@ -1,4 +1,4 @@
-import { ApolloClient, InMemoryCache, createHttpLink, gql } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, gql, ApolloLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { loadErrorMessages, loadDevMessages } from "@apollo/client/dev";
 
@@ -8,8 +8,13 @@ if (process.env.NODE_ENV !== "production") {
   loadErrorMessages();
 }
 
-const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:3002/graphql', // Use API Gateway with Federation
+const gatewayHttpLink = createHttpLink({
+  uri: process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:3002/graphql',
+});
+
+// Direct link to core-service for health queries as a fallback when gateway schema lacks systemHealth
+const coreHealthHttpLink = createHttpLink({
+  uri: process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:3005/graphql',
 });
 
 const authLink = setContext((_, { headers }) => {
@@ -23,8 +28,14 @@ const authLink = setContext((_, { headers }) => {
 });
 
 // Create Apollo Client with better SSR handling
+// Route GetSystemHealth query directly to core-service, everything else goes to the gateway
+const splitLink = ApolloLink.split(
+  (operation) => operation.operationName === 'GetSystemHealth',
+  coreHealthHttpLink,
+  gatewayHttpLink
+);
+
 export const apolloClient = new ApolloClient({
-  link: authLink.concat(httpLink),
   cache: new InMemoryCache(),
   ssrMode: typeof window === 'undefined',
   defaultOptions: {

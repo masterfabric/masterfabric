@@ -5,11 +5,10 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { GET_MY_ORGANIZATION, GET_ORGANIZATION_STATUS, DELETE_ORGANIZATION } from '@/lib/graphql';
+import { GET_MY_ORGANIZATION } from '@/lib/graphql';
 
 interface Organization {
   id: string;
@@ -27,13 +26,11 @@ export default function DashboardPage() {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const { data: orgData, loading: orgLoading, error: orgError } = useQuery(GET_MY_ORGANIZATION, {
     skip: typeof window === 'undefined' || !localStorage.getItem('token'),
   });
 
-  const [deleteOrganization] = useMutation(DELETE_ORGANIZATION);
 
   useEffect(() => {
     if (orgData?.myOrganization) {
@@ -57,33 +54,6 @@ export default function DashboardPage() {
     setShowDetails(!showDetails);
   };
 
-  const handleDeleteOrganization = async () => {
-    if (!organization) return;
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the organization "${organization.name}"? This action cannot be undone.`
-    );
-    
-    if (!confirmed) return;
-    
-    setDeleting(true);
-    try {
-      await deleteOrganization({
-        variables: { id: organization.id }
-      });
-      
-      alert('Organization deleted successfully');
-      // Redirect to login or show message
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    } catch (error: any) {
-      console.error('Error deleting organization:', error);
-      alert(`Failed to delete organization: ${error.message || 'Unknown error'}`);
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -171,26 +141,12 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <h2 className="text-2xl font-light text-foreground">Quick Actions</h2>
             <div className="flex gap-4 flex-wrap">
-              <Button asChild className="bg-foreground text-background hover:bg-muted-foreground">
-                <Link href="/dashboard/projects">View Projects</Link>
-              </Button>
-              <Button asChild variant="ghost" className="text-foreground hover:bg-muted">
-                <Link href="/dashboard/organizations">Manage Organizations</Link>
-              </Button>
               <Button 
                 onClick={handleViewDetails}
                 variant="ghost" 
                 className="text-foreground hover:bg-muted"
               >
                 {showDetails ? 'Hide Details' : 'View Details'}
-              </Button>
-              <Button 
-                onClick={handleDeleteOrganization}
-                variant="ghost" 
-                className="text-foreground hover:bg-muted"
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete Organization'}
               </Button>
             </div>
           </div>

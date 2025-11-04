@@ -1,0 +1,74 @@
+// Provisioning Service - Prisma Schema
+// This schema manages infrastructure provisioning and DNS records
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Provisioning Job Model
+model ProvisioningJob {
+  id            String   @id @default(uuid())
+  tenantId      String
+  type          String   // e.g., 'database', 'subdomain', 'namespace'
+  status        String   @default("pending") // pending, in_progress, completed, failed
+  configuration Json     // Job-specific configuration
+  result        Json?    // Result data after completion
+  error         String?  // Error message if failed
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("provisioning_jobs")
+}
+
+// DNS Record Model
+model DnsRecord {
+  id          String   @id @default(uuid())
+  tenantId    String
+  domain      String
+  subdomain   String?
+  type        String   // A, AAAA, CNAME, TXT, MX, etc.
+  value       String
+  ttl         Int      @default(3600)
+  priority    Int?     // For MX records
+  status      String   @default("active") // active, inactive, pending
+  cloudflareId String? // External provider ID
+  metadata    Json?    // Additional provider-specific data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([domain, subdomain, type])
+  @@index([tenantId])
+  @@index([domain])
+  @@map("dns_records")
+}
+
+// Infrastructure Resource Model
+model InfrastructureResource {
+  id            String   @id @default(uuid())
+  tenantId      String
+  resourceType  String   // 'database', 'redis', 'storage', 'compute'
+  resourceName  String
+  provider      String   // 'aws', 'gcp', 'azure', 'local'
+  configuration Json     // Provider-specific configuration
+  status        String   @default("provisioning") // provisioning, active, suspended, deleted
+  connectionInfo Json?   // Connection details (encrypted)
+  metadata      Json?    // Additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, resourceType, resourceName])
+  @@index([tenantId])
+  @@index([status])
+  @@map("infrastructure_resources")
+}
+

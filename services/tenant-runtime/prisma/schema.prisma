@@ -1,0 +1,81 @@
+// Tenant Runtime Service - Prisma Schema
+// This schema manages tenant-specific data and dynamic schemas
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Organization Model (for tenant isolation)
+model Organization {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  users     User[]
+  schemaDefinitions SchemaDefinition[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+// User Model (aligned with core service)
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  password       String
+  name           String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  role           String       @default("user")
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+// Schema Definition Model (for dynamic schema management)
+model SchemaDefinition {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  tableName      String
+  schemaJson     Json         // Dynamic schema definition
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, tableName])
+  @@index([organizationId])
+  @@map("schema_definitions")
+}
+
+// Dynamic Product Model (example)
+model Product {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  price          Float?
+  sku            String?
+  metadata       Json?    // Dynamic fields
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([sku])
+  @@map("products")
+}
+

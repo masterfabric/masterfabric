@@ -211,8 +211,8 @@ export class OrganizationsService {
       data: {
         postgresHost: dto.postgresHost,
         postgresPort: dto.postgresPort,
-        postgresDb: dto.postgresDb,
-        postgresUser: dto.postgresUser,
+        postgresDb: dto.postgresDatabase,
+        postgresUser: dto.postgresUsername,
         postgresPassword: dto.postgresPassword,
         postgresUpdatedAt: new Date(),
       },

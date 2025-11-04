@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Loader2 } from "lucide-react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -38,17 +39,38 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  isLoading?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, isLoading = false, children, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // When asChild is true, we can't add loading state as it would break the Slot pattern
+    if (asChild) {
+      return (
+        <Comp
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          {...props}
+        >
+          {children}
+        </Comp>
+      )
+    }
+    
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
+        disabled={isLoading || disabled}
         ref={ref}
         {...props}
-      />
+      >
+        {isLoading && (
+          <Loader2 className="animate-spin" aria-hidden="true" />
+        )}
+        <span>{isLoading ? 'Loading...' : children}</span>
+      </Comp>
     )
   }
 )

@@ -162,4 +162,24 @@ export class AuthService {
       },
     };
   }
+
+  async getDeveloperAccessibleProjects(organizationId: string) {
+    // Return all projects for the organization that developers can access
+    return this.prisma.project.findMany({
+      where: {
+        organizationId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        organizationId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
 }

@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { UserBioCard } from '@/components/ui/user-bio-card';
 import { QRCodeTest } from '@/components/ui/qr-code-test';
+import { Dropdown, MultiSelectDropdown } from '@/components/ui/dropdown';
+import { SearchDropdown } from '@/components/ui/search-dropdown';
 
 interface TestResult {
   success: boolean;
   data?: any;
   error?: string;
+  lastTestedAt?: string;
 }
 
 interface TestResults {
@@ -34,6 +38,11 @@ export default function TestPage() {
     organizationName: 'Test Organization',
     organizationSlug: 'test-org'
   });
+
+  // Dropdown states
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedFramework, setSelectedFramework] = useState('');
 
   // Test 1: API Gateway Connection
   const testApiConnection = async () => {
@@ -71,6 +80,7 @@ export default function TestPage() {
               message: 'API Gateway is running but in standby mode',
               availableServices: ['GraphQL Introspection', 'Basic Queries']
             },
+            lastTestedAt: new Date().toISOString(),
             error: undefined
           } 
         }));
@@ -80,6 +90,7 @@ export default function TestPage() {
           apiConnection: { 
             success: !data.errors, 
             data: data,
+            lastTestedAt: new Date().toISOString(),
             error: data.errors ? data.errors[0]?.message : undefined
           } 
         }));
@@ -151,6 +162,7 @@ export default function TestPage() {
               message: 'Authentication not available - API Gateway in standby mode',
               reason: 'Microservices (provisioning, tenant-runtime) are not running'
             },
+            lastTestedAt: new Date().toISOString(),
             error: 'Authentication services are not available in standby mode'
           } 
         }));
@@ -191,6 +203,7 @@ export default function TestPage() {
           authTest: { 
             success: !loginData.errors, 
             data: loginData,
+            lastTestedAt: new Date().toISOString(),
             error: loginData.errors ? loginData.errors[0]?.message : undefined
           } 
         }));
@@ -199,7 +212,8 @@ export default function TestPage() {
           ...prev, 
           authTest: { 
             success: true, 
-            data: registerData
+            data: registerData,
+            lastTestedAt: new Date().toISOString()
           } 
         }));
       }
@@ -236,6 +250,7 @@ export default function TestPage() {
         healthCheck: { 
           success: response.ok, 
           data: data,
+          lastTestedAt: new Date().toISOString(),
           error: response.ok ? undefined : 'Health check failed'
         } 
       }));
@@ -279,6 +294,7 @@ export default function TestPage() {
         databaseTest: { 
           success: !data.errors, 
           data: data,
+          lastTestedAt: new Date().toISOString(),
           error: data.errors ? data.errors[0]?.message : undefined
         } 
       }));
@@ -322,6 +338,7 @@ export default function TestPage() {
         tenantTest: { 
           success: !data.errors, 
           data: data,
+          lastTestedAt: new Date().toISOString(),
           error: data.errors ? data.errors[0]?.message : undefined
         } 
       }));
@@ -365,6 +382,7 @@ export default function TestPage() {
         coreServiceTest: { 
           success: !data.errors, 
           data: data,
+          lastTestedAt: new Date().toISOString(),
           error: data.errors ? data.errors[0]?.message : undefined
         } 
       }));
@@ -392,6 +410,7 @@ export default function TestPage() {
         redisTest: { 
           success: response.ok, 
           data: data,
+          lastTestedAt: new Date().toISOString(),
           error: response.ok ? undefined : 'Redis connection failed'
         } 
       }));
@@ -462,66 +481,7 @@ export default function TestPage() {
               </p>
             </div>
 
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Run all tests or individual service tests</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <Button 
-                    onClick={runAllTests} 
-                    disabled={isLoading}
-                    className="bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    {isLoading ? 'Running All Tests...' : 'Run All Tests'}
-                  </Button>
-                  <Button 
-                    onClick={testApiConnection} 
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    Test API Gateway
-                  </Button>
-                  <Button 
-                    onClick={testHealthCheck} 
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    Health Check
-                  </Button>
-                  <Button 
-                    onClick={testDatabaseConnection} 
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    Database Test
-                  </Button>
-                  <Button 
-                    onClick={testTenantRuntime} 
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    Tenant Runtime
-                  </Button>
-                  <Button 
-                    onClick={testCoreService} 
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    Core Service
-                  </Button>
-                  <Button 
-                    onClick={testRedisConnection} 
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    Redis Test
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Quick Actions removed as requested */}
 
             {/* Test Results Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -532,7 +492,7 @@ export default function TestPage() {
                     API Gateway Connection
                     {testResults.apiConnection && (
                       <Badge variant={testResults.apiConnection.success ? "default" : "destructive"}>
-                        {testResults.apiConnection.success ? "✅" : "❌"}
+                        {testResults.apiConnection.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -548,13 +508,7 @@ export default function TestPage() {
                     {isLoading ? 'Testing...' : 'Test Connection'}
                   </Button>
                   
-                  {testResults.apiConnection && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.apiConnection.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
 
@@ -565,7 +519,7 @@ export default function TestPage() {
                     Health Check
                     {testResults.healthCheck && (
                       <Badge variant={testResults.healthCheck.success ? "default" : "destructive"}>
-                        {testResults.healthCheck.success ? "✅" : "❌"}
+                        {testResults.healthCheck.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -581,13 +535,7 @@ export default function TestPage() {
                     {isLoading ? 'Checking...' : 'Check Health'}
                   </Button>
                   
-                  {testResults.healthCheck && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.healthCheck.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
 
@@ -598,7 +546,7 @@ export default function TestPage() {
                     Database Connection
                     {testResults.databaseTest && (
                       <Badge variant={testResults.databaseTest.success ? "default" : "destructive"}>
-                        {testResults.databaseTest.success ? "✅" : "❌"}
+                        {testResults.databaseTest.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -614,13 +562,7 @@ export default function TestPage() {
                     {isLoading ? 'Testing...' : 'Test Database'}
                   </Button>
                   
-                  {testResults.databaseTest && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.databaseTest.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
 
@@ -631,7 +573,7 @@ export default function TestPage() {
                     Tenant Runtime
                     {testResults.tenantTest && (
                       <Badge variant={testResults.tenantTest.success ? "default" : "destructive"}>
-                        {testResults.tenantTest.success ? "✅" : "❌"}
+                        {testResults.tenantTest.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -647,13 +589,7 @@ export default function TestPage() {
                     {isLoading ? 'Testing...' : 'Test Runtime'}
                   </Button>
                   
-                  {testResults.tenantTest && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.tenantTest.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
 
@@ -664,7 +600,7 @@ export default function TestPage() {
                     Core Service
                     {testResults.coreServiceTest && (
                       <Badge variant={testResults.coreServiceTest.success ? "default" : "destructive"}>
-                        {testResults.coreServiceTest.success ? "✅" : "❌"}
+                        {testResults.coreServiceTest.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -679,13 +615,7 @@ export default function TestPage() {
                     {isLoading ? 'Testing...' : 'Test Core Service'}
                   </Button>
                   
-                  {testResults.coreServiceTest && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.coreServiceTest.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
 
@@ -696,7 +626,7 @@ export default function TestPage() {
                     Redis Connection
                     {testResults.redisTest && (
                       <Badge variant={testResults.redisTest.success ? "default" : "destructive"}>
-                        {testResults.redisTest.success ? "✅" : "❌"}
+                        {testResults.redisTest.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -711,13 +641,7 @@ export default function TestPage() {
                     {isLoading ? 'Testing...' : 'Test Redis'}
                   </Button>
                   
-                  {testResults.redisTest && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.redisTest.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
 
@@ -728,7 +652,7 @@ export default function TestPage() {
                     Authentication Test
                     {testResults.authTest && (
                       <Badge variant={testResults.authTest.success ? "default" : "destructive"}>
-                        {testResults.authTest.success ? "✅" : "❌"}
+                        {testResults.authTest.success ? "Success" : "Failed"}
                       </Badge>
                     )}
                   </CardTitle>
@@ -791,13 +715,7 @@ export default function TestPage() {
                     {isLoading ? 'Testing...' : 'Test Authentication'}
                   </Button>
 
-                  {testResults.authTest && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-3xl">
-                        {testResults.authTest.success ? '✅' : '❌'}
-                      </div>
-                    </div>
-                  )}
+                  {/* Emoji indicator removed; status shown via Badge in title */}
                 </CardContent>
               </Card>
             </div>
@@ -910,6 +828,13 @@ export default function TestPage() {
                   <Button disabled>Disabled</Button>
                   <Button className="bg-blue-600 text-white hover:bg-blue-700">Custom</Button>
                 </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Button isLoading size="sm">Action</Button>
+                  <Button isLoading variant="secondary">Processing</Button>
+                  <Button isLoading variant="outline">Loading</Button>
+                  <Button isLoading variant="ghost">Loading</Button>
+                  <Button isLoading variant="destructive">Deleting</Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -993,6 +918,153 @@ export default function TestPage() {
               </CardContent>
             </Card>
 
+            {/* Dropdown Components Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Dropdown Components</CardTitle>
+                <CardDescription>Various dropdown and select components with different features</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="country-dropdown" className="text-sm">Country Selection</Label>
+                      <Dropdown
+                        options={[
+                          { value: 'us', label: 'United States' },
+                          { value: 'ca', label: 'Canada' },
+                          { value: 'uk', label: 'United Kingdom' },
+                          { value: 'de', label: 'Germany' },
+                          { value: 'fr', label: 'France' },
+                          { value: 'jp', label: 'Japan' },
+                          { value: 'au', label: 'Australia' },
+                          { value: 'br', label: 'Brazil' },
+                        ]}
+                        value={selectedCountry}
+                        placeholder="Select a country"
+                        onValueChange={setSelectedCountry}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="skills-dropdown" className="text-sm">Skills (Multi-select)</Label>
+                      <MultiSelectDropdown
+                        options={[
+                          { value: 'react', label: 'React' },
+                          { value: 'vue', label: 'Vue.js' },
+                          { value: 'angular', label: 'Angular' },
+                          { value: 'node', label: 'Node.js' },
+                          { value: 'python', label: 'Python' },
+                          { value: 'java', label: 'Java' },
+                          { value: 'typescript', label: 'TypeScript' },
+                          { value: 'graphql', label: 'GraphQL' },
+                          { value: 'docker', label: 'Docker' },
+                          { value: 'kubernetes', label: 'Kubernetes' },
+                        ]}
+                        values={selectedSkills}
+                        placeholder="Select your skills"
+                        onValuesChange={setSelectedSkills}
+                        maxDisplayed={2}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="framework-dropdown" className="text-sm">Framework (Searchable)</Label>
+                      <SearchDropdown
+                        options={[
+                          { 
+                            value: 'nextjs', 
+                            label: 'Next.js', 
+                            description: 'React framework for production',
+                            group: 'React'
+                          },
+                          { 
+                            value: 'nuxt', 
+                            label: 'Nuxt.js', 
+                            description: 'Vue.js framework for production',
+                            group: 'Vue'
+                          },
+                          { 
+                            value: 'sveltekit', 
+                            label: 'SvelteKit', 
+                            description: 'Svelte framework for production',
+                            group: 'Svelte'
+                          },
+                          { 
+                            value: 'remix', 
+                            label: 'Remix', 
+                            description: 'Full-stack web framework',
+                            group: 'React'
+                          },
+                          { 
+                            value: 'astro', 
+                            label: 'Astro', 
+                            description: 'Static site generator',
+                            group: 'Static'
+                          },
+                          { 
+                            value: 'gatsby', 
+                            label: 'Gatsby', 
+                            description: 'React-based static site generator',
+                            group: 'React'
+                          },
+                        ]}
+                        value={selectedFramework}
+                        placeholder="Search and select a framework"
+                        searchPlaceholder="Search frameworks..."
+                        onValueChange={setSelectedFramework}
+                        allowClear
+                        groupBy
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="disabled-dropdown" className="text-sm">Disabled Dropdown</Label>
+                      <Dropdown
+                        options={[
+                          { value: 'option1', label: 'Option 1' },
+                          { value: 'option2', label: 'Option 2' },
+                        ]}
+                        placeholder="This dropdown is disabled"
+                        disabled
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Selected Values Display */}
+                <div className="mt-6 p-4 bg-muted rounded-lg">
+                  <h4 className="text-sm font-medium mb-3">Selected Values:</h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <strong>Country:</strong> 
+                      <span className="ml-2 text-muted-foreground">
+                        {selectedCountry || 'None selected'}
+                      </span>
+                    </div>
+                    <div>
+                      <strong>Skills:</strong> 
+                      <span className="ml-2 text-muted-foreground">
+                        {selectedSkills.length > 0 ? selectedSkills.join(', ') : 'None selected'}
+                      </span>
+                    </div>
+                    <div>
+                      <strong>Framework:</strong> 
+                      <span className="ml-2 text-muted-foreground">
+                        {selectedFramework || 'None selected'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Badges and Alerts Showcase */}
             <Card>
               <CardHeader>
@@ -1032,6 +1104,72 @@ export default function TestPage() {
                       <p className="text-red-800 text-sm">
                         This is an error alert message.
                       </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Accordion Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Accordion</CardTitle>
+                <CardDescription>Expandable content sections</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Accordion className="w-full" defaultValue={["item-1"]} type="multiple">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger value="item-1" className="px-2">
+                      Getting Started
+                    </AccordionTrigger>
+                    <AccordionContent value="item-1" className="px-2">
+                      Learn how to set up your environment and run the platform locally.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-2">
+                    <AccordionTrigger value="item-2" className="px-2">
+                      API & GraphQL
+                    </AccordionTrigger>
+                    <AccordionContent value="item-2" className="px-2">
+                      Explore the auto-generated GraphQL APIs and available operations.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-3">
+                    <AccordionTrigger value="item-3" className="px-2">
+                      Security & Auth
+                    </AccordionTrigger>
+                    <AccordionContent value="item-3" className="px-2">
+                      Authentication, authorization, and multi-tenant access control.
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+
+            {/* Side Menu Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Side Menu</CardTitle>
+                <CardDescription>Static preview of the dashboard side navigation</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="border border-foreground/10 grid grid-cols-12">
+                  <aside className="col-span-4 md:col-span-3 lg:col-span-2 bg-background">
+                    <div className="p-4 border-r border-foreground/10 h-full">
+                      <div className="mb-4 text-lg font-light">MasterFabric</div>
+                      <nav className="space-y-1">
+                        <div className="px-3 py-2 text-foreground hover:bg-muted">Organizations</div>
+                        <div className="px-3 py-2 text-foreground hover:bg-muted">Projects</div>
+                        <div className="px-3 py-2 text-foreground hover:bg-muted">Settings</div>
+                      </nav>
+                      <div className="mt-6 pt-4 border-t border-foreground/10">
+                        <div className="text-xs text-muted-foreground">user@masterfabric.dev</div>
+                      </div>
+                    </div>
+                  </aside>
+                  <div className="col-span-8 md:col-span-9 lg:col-span-10 p-6">
+                    <div className="text-sm text-muted-foreground">
+                      Main content area preview. This demonstrates layout proportions next to the side menu.
                     </div>
                   </div>
                 </div>
@@ -1184,8 +1322,8 @@ export default function TestPage() {
                   <div>
                     <h4 className="text-sm font-medium">New Components</h4>
                     <p className="text-sm text-muted-foreground">
-                      UserBioCard and QRCodeTest are new components added to the showcase. 
-                      They demonstrate advanced UI patterns and interactive functionality.
+                      UserBioCard, QRCodeTest, and Dropdown components are new additions to the showcase. 
+                      The dropdown components include basic dropdown, multi-select, and searchable variants with grouping support.
                     </p>
                   </div>
                 </div>
@@ -1262,7 +1400,7 @@ export default function TestPage() {
                     <span className="text-muted-foreground">API Gateway</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="text-muted-foreground">Core Service</span>
                   </div>
                   <div className="flex items-center gap-2">

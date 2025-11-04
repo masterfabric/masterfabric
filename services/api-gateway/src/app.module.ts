@@ -17,6 +17,7 @@ import { DatabasesModule } from './modules/databases/databases.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ServiceRegistryModule } from './modules/service-registry/service-registry.module';
 import { HealthMonitorModule } from './modules/health-monitor/health-monitor.module';
+import { RedisClusterService } from './modules/cache/redis-cluster.service';
 
 // Interceptors & Guards
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
@@ -34,6 +35,8 @@ import { AuthService } from './modules/auth/auth.service';
  */
 @Controller()
 export class HealthController {
+  constructor(private readonly redisCluster: RedisClusterService) {}
+
   @Get('health')
   getHealth() {
     return {
@@ -46,6 +49,28 @@ export class HealthController {
       author: '@gurkanfikretgunak',
       repository: 'https://github.com/masterfabric/masterfabric',
     };
+  }
+
+  @Get('health/redis')
+  async getRedisHealth() {
+    try {
+      const cluster = await this.redisCluster.getClusterStatus();
+      const healthy = cluster.master.connected;
+      return {
+        status: healthy ? 'ok' : 'unhealthy',
+        service: 'redis',
+        message: healthy ? 'Redis is connected' : 'Redis is not connected',
+        timestamp: new Date().toISOString(),
+        cluster,
+      };
+    } catch (error: any) {
+      return {
+        status: 'unhealthy',
+        service: 'redis',
+        message: error?.message || 'Redis health check failed',
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 }
 
@@ -178,6 +203,7 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
               @link(url: "https://specs.apollo.dev/join/v0.3", for: EXECUTION)
             {
               query: Query
+              mutation: Mutation
             }
 
             directive @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE
@@ -206,12 +232,37 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
               _service: _Service! @join__field(graph: STANDBY)
               gatewayStatus: String! @join__field(graph: STANDBY)
               availableServices: [String!]! @join__field(graph: STANDBY)
+              systemHealth: SystemHealth! @join__field(graph: STANDBY)
             }
 
             type _Service
               @join__type(graph: STANDBY)
             {
               sdl: String
+            }
+
+            type SystemHealth
+              @join__type(graph: STANDBY)
+            {
+              overallStatus: String! @join__field(graph: STANDBY)
+              services: [ServiceHealth!]! @join__field(graph: STANDBY)
+              timestamp: String! @join__field(graph: STANDBY)
+            }
+
+            type ServiceHealth
+              @join__type(graph: STANDBY)
+            {
+              name: String! @join__field(graph: STANDBY)
+              status: String! @join__field(graph: STANDBY)
+              message: String @join__field(graph: STANDBY)
+              lastChecked: String @join__field(graph: STANDBY)
+              responseTime: Int @join__field(graph: STANDBY)
+            }
+
+            type Mutation
+              @join__type(graph: STANDBY)
+            {
+              standbyNoop(message: String): String @join__field(graph: STANDBY)
             }
           `;
           
@@ -227,6 +278,10 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
                 extensions: {
                   code: 'STANDBY_MODE',
                   originalError: error.message,
+                  mode: 'standby',
+                  availableServices: loadedServices,
+                  expectedServices: ['core','provisioning','tenant-runtime'],
+                  timestamp: new Date().toISOString(),
                 },
               }),
             },

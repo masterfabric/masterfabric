@@ -1,0 +1,118 @@
+{
+  "privacy": {
+    "title": "Privacy Policy",
+    "updatedAt": "2025-10-19",
+    "sections": [
+      {
+        "heading": "Introduction",
+        "body": "We respect your privacy. This policy explains what data we collect, how we use it, and your choices."
+      },
+      {
+        "heading": "Data We Collect",
+        "body": "We may collect account details (email, name), organization and project metadata, usage analytics, and technical diagnostics to improve reliability and performance."
+      },
+      {
+        "heading": "How We Use Data",
+        "body": "To provide authentication, manage tenants and organizations, generate dynamic GraphQL schemas, run health checks, and enhance platform security and performance."
+      },
+      {
+        "heading": "Cookies & Local Storage",
+        "body": "We may use cookies or local storage to maintain sessions, preferences, and UI state in the Dashboard."
+      },
+      {
+        "heading": "Data Security",
+        "body": "Security is built into the platform: JWT-based auth, request-scoped tenant isolation, hashed passwords, and optional HashiCorp Vault for secrets management."
+      },
+      {
+        "heading": "Data Retention",
+        "body": "We retain data only for as long as necessary to provide the service and to meet legal obligations."
+      },
+      {
+        "heading": "Third-Party Services",
+        "body": "Optional integrations such as Cloudflare DNS may process subdomain configuration data when enabled."
+      },
+      {
+        "heading": "Your Rights",
+        "body": "You can request access, export, or deletion of your data, subject to authentication and legal requirements."
+      },
+      {
+        "heading": "Contact",
+        "body": "For privacy inquiries, reach out via the contact details in the README (License Email and Website)."
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "updatedAt": "2025-10-19",
+    "sections": [
+      {
+        "heading": "Acceptance of Terms",
+        "body": "By using MasterFabric, you agree to these terms and any referenced policies."
+      },
+      {
+        "heading": "Accounts & Organizations",
+        "body": "You are responsible for maintaining account security. Organization owners manage access for their tenants and users."
+      },
+      {
+        "heading": "Acceptable Use",
+        "body": "Do not misuse the service, disrupt systems, probe unauthorized data, or violate applicable laws."
+      },
+      {
+        "heading": "Intellectual Property",
+        "body": "MasterFabric is licensed under AGPL-3.0 with additional terms. See LICENSE in the repository for details."
+      },
+      {
+        "heading": "No Warranties",
+        "body": "The service is provided \"as is\" and \"as available\". We disclaim implied warranties to the fullest extent permitted by law."
+      },
+      {
+        "heading": "Limitation of Liability",
+        "body": "To the maximum extent permitted, we are not liable for indirect, incidental, or consequential damages."
+      },
+      {
+        "heading": "Changes to Terms",
+        "body": "We may update these terms. Continued use after updates constitutes acceptance of the revised terms."
+      },
+      {
+        "heading": "Governing Law",
+        "body": "Terms are governed by applicable laws in your jurisdiction unless otherwise required."
+      },
+      {
+        "heading": "Contact",
+        "body": "See README for License Email and Company Website for official communications."
+      }
+    ]
+  },
+  "support": {
+    "title": "Support",
+    "updatedAt": "2025-10-19",
+    "sections": [
+      {
+        "heading": "Quick Links",
+        "body": "Dashboard: http://localhost:3000\nAPI Gateway: http://localhost:3002 (GraphQL at /graphql)\nCore Service: http://localhost:3005\nProvisioning Service: http://localhost:3003\nTenant Runtime: http://localhost:3004\nPrisma Studio: http://localhost:5555"
+      },
+      {
+        "heading": "Documentation",
+        "body": "See the docs directory for Setup, Architecture, Testing, System Settings, and GraphQL Schema. Start at docs/README.md."
+      },
+      {
+        "heading": "Health & Status",
+        "body": "Health endpoints: /health on each service. GraphQL health queries available via API Gateway. The Dashboard includes a real-time health indicator and detailed status view."
+      },
+      {
+        "heading": "Tech Stack",
+        "body": "NestJS, Next.js 15, TypeScript, PostgreSQL 15, Prisma, Redis 7, GraphQL, Docker Compose, optional Vault."
+      },
+      {
+        "heading": "Contact",
+        "body": "License Email: license@masterfabric.co\nCompany Website: https://masterfabric.co\nAuthor: @gurkanfikretgunak"
+      },
+      {
+        "heading": "Troubleshooting",
+        "body": "Use scripts/setup-local.sh for local setup. For production, see scripts/deploy.sh. Use reboot-masterfabric.sh for full restart and health validation."
+      }
+    ]
+  }
+}
+
+

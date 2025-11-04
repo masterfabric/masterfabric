@@ -52,6 +52,51 @@ export class CloudflareService {
     }
   }
 
+  async createRecord(
+    subdomain: string,
+    domain: string,
+    type: string,
+    value: string,
+    ttl: number = 1,
+    proxied: boolean = true,
+  ): Promise<string> {
+    if (!this.apiToken || !this.zoneId) {
+      this.logger.warn('Skipping DNS creation - Cloudflare credentials not configured');
+      return 'mock-record-id';
+    }
+
+    try {
+      const name = subdomain ? `${subdomain}.${domain}` : domain;
+      
+      const response = await axios.post(
+        `${this.baseUrl}/zones/${this.zoneId}/dns_records`,
+        {
+          type: type.toUpperCase(),
+          name,
+          content: value,
+          ttl,
+          proxied: type.toUpperCase() === 'CNAME' || type.toUpperCase() === 'A' ? proxied : false,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (response.data.success) {
+        this.logger.log(`Successfully created ${type} record: ${name} -> ${value}`);
+        return response.data.result.id;
+      } else {
+        throw new Error(`Cloudflare API error: ${JSON.stringify(response.data.errors)}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to create DNS record:`, error.message);
+      throw error;
+    }
+  }
+
   async deleteCNAME(slug: string): Promise<void> {
     if (!this.apiToken || !this.zoneId) {
       this.logger.warn('Skipping DNS deletion - Cloudflare credentials not configured');
@@ -94,6 +139,33 @@ export class CloudflareService {
       }
     } catch (error) {
       this.logger.error(`Failed to delete CNAME record for ${slug}:`, error.message);
+      throw error;
+    }
+  }
+
+  async deleteRecord(recordId: string): Promise<void> {
+    if (!this.apiToken || !this.zoneId) {
+      this.logger.warn('Skipping DNS deletion - Cloudflare credentials not configured');
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/zones/${this.zoneId}/dns_records/${recordId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+          },
+        },
+      );
+
+      if (response.data.success) {
+        this.logger.log(`Successfully deleted DNS record: ${recordId}`);
+      } else {
+        throw new Error(`Cloudflare API error: ${JSON.stringify(response.data.errors)}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to delete DNS record:`, error.message);
       throw error;
     }
   }

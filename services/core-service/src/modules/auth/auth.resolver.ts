@@ -1,7 +1,10 @@
-import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Mutation, Query, Args, Context } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterInput } from './dto/register.input';
 import { AuthResponse } from './entities/auth-response.entity';
+import { Project } from '../projects/entities/project.entity';
+import { GqlJwtAuthGuard } from './guards/gql-jwt-auth.guard';
 
 @Resolver()
 export class AuthResolver {
@@ -49,6 +52,16 @@ export class AuthResolver {
         organizationId: result.user.organizationId,
       },
     };
+  }
+
+  @Query(() => [Project], { name: 'developerProjects' })
+  @UseGuards(GqlJwtAuthGuard)
+  async getDeveloperProjects(@Context() context: any) {
+    const organizationId = context.req?.user?.organizationId;
+    if (!organizationId) {
+      throw new Error('Organization ID not found in token');
+    }
+    return this.authService.getDeveloperAccessibleProjects(organizationId);
   }
 }
 

@@ -106,8 +106,8 @@ export function ConnectionManager({ type, currentConfig, onUpdate }: ConnectionM
         ? {
             postgresHost: formData.host.trim(),
             postgresPort: port,
-            postgresDb: formData.database?.trim() || '',
-            postgresUser: formData.user?.trim() || '',
+            postgresDatabase: formData.database?.trim() || '',
+            postgresUsername: formData.user?.trim() || '',
             postgresPassword: formData.password?.trim() || undefined,
           }
         : {
@@ -140,12 +140,21 @@ export function ConnectionManager({ type, currentConfig, onUpdate }: ConnectionM
       console.error('Update error:', error);
       console.error('Error details:', error.graphQLErrors || error.networkError);
       
-      const errorMessage = error.graphQLErrors?.[0]?.message 
-        || error.networkError?.message 
-        || error.message 
-        || 'Unknown error occurred';
+      let errorMessage = 'Failed to update connection';
       
-      alert(`Failed to update connection: ${errorMessage}`);
+      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+        errorMessage = error.graphQLErrors[0].message;
+      } else if (error.networkError) {
+        if (error.networkError.message?.includes('fetch') || error.networkError.message?.includes('Failed to fetch')) {
+          errorMessage = 'Backend service is not available. Please check if Core Service is running.';
+        } else {
+          errorMessage = error.networkError.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Error: ${errorMessage}`);
     }
   };
 
