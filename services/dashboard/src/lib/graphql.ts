@@ -36,6 +36,7 @@ const splitLink = ApolloLink.split(
 );
 
 export const apolloClient = new ApolloClient({
+  link: authLink.concat(splitLink),
   cache: new InMemoryCache(),
   ssrMode: typeof window === 'undefined',
   defaultOptions: {

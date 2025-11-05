@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FooterSystemStatus } from "@/components/FooterSystemStatus";
 
 export default function Home() {
   return (
@@ -112,27 +113,7 @@ export default function Home() {
             </div>
 
             {/* System Status */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">System Status</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-muted-foreground">Dashboard</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span className="text-muted-foreground">API Gateway</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-muted-foreground">Core Service</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span className="text-muted-foreground">Tenant Runtime</span>
-                </div>
-              </div>
-            </div>
+            <FooterSystemStatus />
           </div>
 
           {/* Bottom Section */}
