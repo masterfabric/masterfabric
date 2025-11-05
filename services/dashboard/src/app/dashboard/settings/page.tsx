@@ -123,7 +123,7 @@ export default function SettingsPage() {
     const userData = localStorage.getItem('user');
     
     if (!token || !userData) {
-      router.push('/login');
+      router.push('/dashboard/login');
       return;
     }
 
@@ -173,7 +173,7 @@ export default function SettingsPage() {
       localStorage.removeItem('user');
       // Close dialog and redirect
       setShowDeleteDialog(false);
-      router.push('/login');
+      router.push('/dashboard/login');
     } catch (error: any) {
       alert(`Failed to delete organization: ${error.message}`);
     }

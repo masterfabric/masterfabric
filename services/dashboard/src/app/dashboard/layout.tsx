@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ServiceStatusIndicator } from '@/components/ServiceStatusIndicator';
 
@@ -14,25 +14,35 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const [showDevDialog, setShowDevDialog] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Check if current page is login or register (public pages)
+  const isAuthPage = pathname === '/dashboard/login' || pathname === '/dashboard/register';
 
   useEffect(() => {
+    // Skip authentication check for auth pages
+    if (isAuthPage) {
+      setLoading(false);
+      return;
+    }
+
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
     
     if (!token || !userData) {
-      router.push('/login');
+      router.push('/dashboard/login');
       return;
     }
 
     setUser(JSON.parse(userData));
     setLoading(false);
-  }, [router]);
+  }, [router, isAuthPage]);
 
   const handleLogout = () => {
     console.log('Sign out clicked');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/login');
+    router.push('/dashboard/login');
   };
 
   if (loading) {
@@ -41,6 +51,11 @@ export default function DashboardLayout({
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
       </div>
     );
+  }
+
+  // Render auth pages without sidebar
+  if (isAuthPage) {
+    return <>{children}</>;
   }
 
   return (

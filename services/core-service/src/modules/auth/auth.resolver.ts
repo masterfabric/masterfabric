@@ -5,11 +5,13 @@ import { RegisterInput } from './dto/register.input';
 import { AuthResponse } from './entities/auth-response.entity';
 import { Project } from '../projects/entities/project.entity';
 import { GqlJwtAuthGuard } from './guards/gql-jwt-auth.guard';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Resolver()
 export class AuthResolver {
   constructor(private readonly authService: AuthService) {}
 
+  @Public() // Allow public registration without API key
   @Mutation(() => AuthResponse)
   async register(@Args('input') input: RegisterInput): Promise<AuthResponse> {
     const result: any = await this.authService.register({
@@ -36,6 +38,7 @@ export class AuthResolver {
     };
   }
 
+  @Public() // Allow public login without API key
   @Mutation(() => AuthResponse)
   async login(
     @Args('email') email: string,

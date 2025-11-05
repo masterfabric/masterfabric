@@ -1,53 +1,65 @@
-import { ApolloClient, InMemoryCache, createHttpLink, gql, ApolloLink } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, gql, ApolloLink, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { loadErrorMessages, loadDevMessages } from "@apollo/client/dev";
 
 // Load Apollo Client error messages for better debugging
-if (process.env.NODE_ENV !== "production") {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== "production") {
   loadDevMessages();
   loadErrorMessages();
 }
 
-const gatewayHttpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:3002/graphql',
-});
+// Function to create Apollo Client (for proper Next.js SSR handling)
+function createApolloClient() {
+  const gatewayHttpLink = createHttpLink({
+    uri: process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:3002/graphql',
+    credentials: 'same-origin',
+  });
 
-// Direct link to core-service for health queries as a fallback when gateway schema lacks systemHealth
-const coreHealthHttpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:3005/graphql',
-});
+  // Direct link to core-service for health queries
+  const coreHealthHttpLink = createHttpLink({
+    uri: process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:3005/graphql',
+    credentials: 'same-origin',
+  });
 
-const authLink = setContext((_, { headers }) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  return {
-    headers: {
-      ...headers,
-      authorization: token ? `Bearer ${token}` : "",
-    }
-  };
-});
+  const authLink = setContext((_, { headers }) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return {
+      headers: {
+        ...headers,
+        authorization: token ? `Bearer ${token}` : "",
+      }
+    };
+  });
 
-// Create Apollo Client with better SSR handling
-// Route GetSystemHealth query directly to core-service, everything else goes to the gateway
-const splitLink = ApolloLink.split(
-  (operation) => operation.operationName === 'GetSystemHealth',
-  coreHealthHttpLink,
-  gatewayHttpLink
-);
+  // Route GetSystemHealth query directly to core-service, everything else to gateway
+  const splitLink = ApolloLink.split(
+    (operation) => operation.operationName === 'GetSystemHealth',
+    coreHealthHttpLink,
+    gatewayHttpLink
+  );
 
-export const apolloClient = new ApolloClient({
-  link: authLink.concat(splitLink),
-  cache: new InMemoryCache(),
-  ssrMode: typeof window === 'undefined',
-  defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'ignore',
+  return new ApolloClient({
+    link: from([authLink, splitLink]),
+    cache: new InMemoryCache(),
+    ssrMode: typeof window === 'undefined',
+    defaultOptions: {
+      watchQuery: {
+        errorPolicy: 'all',
+        fetchPolicy: 'cache-and-network',
+      },
+      query: {
+        errorPolicy: 'all',
+        fetchPolicy: 'network-only',
+      },
+      mutate: {
+        errorPolicy: 'all',
+      },
     },
-    query: {
-      errorPolicy: 'ignore',
-    },
-  },
-});
+  });
+}
+
+// Create and export the client instance
+export const apolloClient = createApolloClient();
 
 // GraphQL Queries and Mutations
 export const TENANT_REGISTER = gql`

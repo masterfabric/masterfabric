@@ -45,7 +45,7 @@ export default function DashboardPage() {
       if (orgError.message.includes('Unauthorized') || orgError.message.includes('401')) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        window.location.href = '/dashboard/login';
       }
     }
   }, [orgError]);

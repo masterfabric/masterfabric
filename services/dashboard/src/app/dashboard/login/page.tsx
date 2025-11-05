@@ -108,7 +108,7 @@ export default function LoginPage() {
               </Button>
 
               <div className="text-center text-sm">
-                <Link href="/register" className="text-foreground hover:text-muted-foreground">
+                <Link href="/dashboard/register" className="text-foreground hover:text-muted-foreground">
                   Don't have an account? Sign up
                 </Link>
               </div>

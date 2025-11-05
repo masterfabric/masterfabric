@@ -41,7 +41,7 @@ export default function ProjectsPage() {
     if (error) {
       console.error('GraphQL Error:', error);
       if (error.message.includes('Unauthorized') || error.message.includes('401')) {
-        router.push('/login');
+        router.push('/dashboard/login');
       }
     }
   }, [error, router]);
