@@ -657,3 +657,29 @@ export const DELETE_PROJECT_SCHEMA = gql`
     }
   }
 `;
+
+// ==================== SCHEMA DATA OPERATIONS ====================
+
+export const QUERY_SCHEMA_DATA = gql`
+  query QuerySchemaData($projectId: String!, $input: QuerySchemaDataInput!) {
+    querySchemaData(projectId: $projectId, input: $input)
+  }
+`;
+
+export const CREATE_SCHEMA_DATA = gql`
+  mutation CreateSchemaData($projectId: String!, $input: CreateSchemaDataInput!) {
+    createSchemaData(projectId: $projectId, input: $input)
+  }
+`;
+
+export const UPDATE_SCHEMA_DATA = gql`
+  mutation UpdateSchemaData($projectId: String!, $input: UpdateSchemaDataInput!) {
+    updateSchemaData(projectId: $projectId, input: $input)
+  }
+`;
+
+export const DELETE_SCHEMA_DATA = gql`
+  mutation DeleteSchemaData($projectId: String!, $input: DeleteSchemaDataInput!) {
+    deleteSchemaData(projectId: $projectId, input: $input)
+  }
+`;

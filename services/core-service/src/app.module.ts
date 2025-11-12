@@ -23,6 +23,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { ProjectSchemasModule } from './modules/project-schemas/project-schemas.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Controller()
@@ -128,6 +129,7 @@ export class HealthController {
     UsersModule,
     OrganizationsModule,
     ProjectsModule,
+    ProjectSchemasModule,
     HealthModule,
     // RolesModule,
     // PermissionsModule,

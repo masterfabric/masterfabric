@@ -28,6 +28,15 @@ input CreateProjectDto {
   name: String!
 }
 
+input CreateProjectSchemaInput {
+  displayName: String
+  enableRLS: Boolean
+  enableRealtime: Boolean
+  fields: JSON!
+  policies: JSON
+  tableName: String!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -43,12 +52,19 @@ input InviteDeveloperInput {
   password: String!
 }
 
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
 type Mutation {
   createApiKey(name: String!, projectId: ID!): ApiKey!
   createProject(input: CreateProjectDto!): Project!
+  createProjectSchema(input: CreateProjectSchemaInput!, projectId: String!): ProjectSchema!
   deleteApiKey(id: ID!): ApiKey!
   deleteOrganization(id: ID!): Organization!
   deleteProject(id: ID!): Project!
+  deleteProjectSchema(projectId: String!, schemaId: String!): ProjectSchema!
   deleteUser(id: String!): DeleteResult!
   inviteDeveloper(input: InviteDeveloperInput!): User!
   login(email: String!, password: String!): AuthResponse!
@@ -56,6 +72,7 @@ type Mutation {
   updateOrganization(id: ID!, input: UpdateOrganizationDto!): Organization!
   updatePostgresConnection(input: UpdatePostgresConnectionDto!): Organization!
   updateProject(id: ID!, input: UpdateProjectDto!): Project!
+  updateProjectSchema(input: UpdateProjectSchemaInput!, projectId: String!, schemaId: String!): ProjectSchema!
   updateRedisConnection(input: UpdateRedisConnectionDto!): Organization!
 }
 
@@ -97,6 +114,19 @@ type Project {
   updatedAt: DateTime!
 }
 
+type ProjectSchema {
+  createdAt: DateTime!
+  displayName: String
+  enableRLS: Boolean!
+  enableRealtime: Boolean!
+  fields: JSON!
+  id: ID!
+  policies: JSON
+  projectId: String!
+  tableName: String!
+  updatedAt: DateTime!
+}
+
 type Query {
   developerProjects: [Project!]!
   myOrganization: Organization!
@@ -106,6 +136,8 @@ type Query {
   organizations: [Organization!]!
   project(id: ID!): Project!
   projectApiKeys(projectId: ID!): [ApiKey!]!
+  projectSchema(projectId: String!, schemaId: String!): ProjectSchema!
+  projectSchemas(projectId: String!): [ProjectSchema!]!
   projects: [Project!]!
   systemHealth: SystemHealth!
   testPostgresConnection: ConnectionTestResult!
@@ -149,6 +181,14 @@ input UpdatePostgresConnectionDto {
 input UpdateProjectDto {
   description: String
   name: String
+}
+
+input UpdateProjectSchemaInput {
+  displayName: String
+  enableRLS: Boolean
+  enableRealtime: Boolean
+  fields: JSON
+  policies: JSON
 }
 
 input UpdateRedisConnectionDto {

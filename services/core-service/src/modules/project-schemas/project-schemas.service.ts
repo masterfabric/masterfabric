@@ -200,30 +200,40 @@ export class ProjectSchemasService {
    * Validate field definitions
    */
   private validateFields(fields: any[]) {
+    if (!fields || !Array.isArray(fields) || fields.length === 0) {
+      throw new BadRequestException('At least one field is required');
+    }
+
     const validTypes = ['string', 'number', 'boolean', 'date', 'json', 'text', 'uuid'];
     const fieldNames = new Set<string>();
 
     for (const field of fields) {
-      if (!field.name || typeof field.name !== 'string') {
-        throw new BadRequestException('Each field must have a valid name');
+      if (!field || typeof field !== 'object') {
+        throw new BadRequestException('Each field must be a valid object');
       }
 
-      if (fieldNames.has(field.name)) {
+      if (!field.name || typeof field.name !== 'string' || !field.name.trim()) {
+        throw new BadRequestException('Each field must have a valid, non-empty name');
+      }
+
+      const fieldName = field.name.trim().toLowerCase();
+
+      if (fieldNames.has(fieldName)) {
         throw new BadRequestException(`Duplicate field name: ${field.name}`);
       }
 
-      fieldNames.add(field.name);
+      fieldNames.add(fieldName);
 
-      if (!field.type || !validTypes.includes(field.type)) {
+      if (!field.type || typeof field.type !== 'string' || !validTypes.includes(field.type)) {
         throw new BadRequestException(
-          `Field '${field.name}' has invalid type. Valid types: ${validTypes.join(', ')}`
+          `Field '${field.name}' has invalid type '${field.type}'. Valid types: ${validTypes.join(', ')}`
         );
       }
 
-      // Validate field name (alphanumeric + underscore, must start with letter)
-      if (!/^[a-z][a-z0-9_]*$/i.test(field.name)) {
+      // Validate field name (alphanumeric + underscore, must start with letter, lowercase only)
+      if (!/^[a-z][a-z0-9_]*$/.test(fieldName)) {
         throw new BadRequestException(
-          `Field name '${field.name}' is invalid. Must start with a letter and contain only letters, numbers, and underscores`
+          `Field name '${field.name}' is invalid. Must start with a lowercase letter and contain only lowercase letters, numbers, and underscores`
         );
       }
     }
@@ -233,9 +243,24 @@ export class ProjectSchemasService {
    * Create physical table in database
    */
   private async createPhysicalTable(projectId: string, tableName: string, fields: any[]) {
+    const sanitizedTableName = `tenant_${tableName}_${projectId.replace(/-/g, '_')}`;
+    
+    // Check if table already exists
+    const tableExists = await this.prisma.$queryRawUnsafe(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = '${sanitizedTableName}'
+      ) as exists;
+    `);
+
+    if (Array.isArray(tableExists) && (tableExists[0] as any)?.exists) {
+      throw new BadRequestException(`Table '${tableName}' already exists in database`);
+    }
+
     const columns = [
       'id UUID PRIMARY KEY DEFAULT gen_random_uuid()',
-      `project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE`,
+      'project_id UUID NOT NULL',
       'created_at TIMESTAMP DEFAULT NOW()',
       'updated_at TIMESTAMP DEFAULT NOW()',
     ];
@@ -260,13 +285,27 @@ export class ProjectSchemasService {
       columns.push(columnDef);
     }
 
+    // Create table first
     const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS tenant_${tableName}_${projectId.replace(/-/g, '_')} (
+      CREATE TABLE ${sanitizedTableName} (
         ${columns.join(',\n        ')}
       );
     `;
 
     await this.prisma.$executeRawUnsafe(createTableSQL);
+
+    // Add foreign key constraint separately
+    try {
+      await this.prisma.$executeRawUnsafe(`
+        ALTER TABLE ${sanitizedTableName}
+        ADD CONSTRAINT ${sanitizedTableName}_project_id_fkey
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+      `);
+    } catch (error: any) {
+      // If foreign key fails, drop the table and rethrow
+      await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${sanitizedTableName};`);
+      throw new BadRequestException(`Failed to create table: ${error.message}`);
+    }
 
     // Create index on project_id for performance
     await this.prisma.$executeRawUnsafe(`
@@ -326,6 +365,256 @@ export class ProjectSchemasService {
       default:
         return `'${value}'`;
     }
+  }
+
+  /**
+   * Query data from a schema table
+   */
+  async queryData(organizationId: string, projectId: string, tableName: string, options?: {
+    where?: any;
+    orderBy?: any;
+    limit?: number;
+    offset?: number;
+  }) {
+    // Verify schema exists
+    const schema = await this.prisma.projectSchema.findFirst({
+      where: {
+        projectId,
+        tableName,
+        project: { organizationId },
+      },
+    });
+
+    if (!schema) {
+      throw new NotFoundException(`Schema '${tableName}' not found in this project`);
+    }
+
+    const sanitizedTableName = `tenant_${tableName}_${projectId.replace(/-/g, '_')}`;
+    const params: any[] = [projectId];
+    let paramIndex = 1;
+    
+    let query = `SELECT * FROM ${sanitizedTableName} WHERE project_id = $1`;
+
+    // Add WHERE conditions
+    if (options?.where) {
+      const { whereClause, whereParams } = this.buildWhereClause(options.where, paramIndex);
+      if (whereClause) {
+        query += ` AND ${whereClause}`;
+        params.push(...whereParams);
+        paramIndex += whereParams.length;
+      }
+    }
+
+    // Add ORDER BY
+    if (options?.orderBy) {
+      const orderBy = this.buildOrderByClause(options.orderBy);
+      if (orderBy) {
+        query += ` ${orderBy}`;
+      }
+    } else {
+      query += ` ORDER BY created_at DESC`;
+    }
+
+    // Add LIMIT and OFFSET
+    if (options?.limit) {
+      paramIndex++;
+      query += ` LIMIT $${paramIndex}`;
+      params.push(options.limit);
+    }
+    if (options?.offset) {
+      paramIndex++;
+      query += ` OFFSET $${paramIndex}`;
+      params.push(options.offset);
+    }
+
+    const result = await this.prisma.$queryRawUnsafe(query, ...params);
+    return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Create data in a schema table
+   */
+  async createData(organizationId: string, projectId: string, tableName: string, data: any) {
+    // Verify schema exists
+    const schema = await this.prisma.projectSchema.findFirst({
+      where: {
+        projectId,
+        tableName,
+        project: { organizationId },
+      },
+    });
+
+    if (!schema) {
+      throw new NotFoundException(`Schema '${tableName}' not found in this project`);
+    }
+
+    const sanitizedTableName = `tenant_${tableName}_${projectId.replace(/-/g, '_')}`;
+    const fields = schema.fields as any[];
+    const fieldNames = fields.map(f => f.name);
+
+    // Validate and filter data based on schema fields
+    const validData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      // Validate column name
+      if (!/^[a-z][a-z0-9_]*$/i.test(key)) {
+        throw new BadRequestException(`Invalid field name: ${key}`);
+      }
+      
+      // Check if field exists in schema
+      if (!fieldNames.includes(key)) {
+        throw new BadRequestException(`Field '${key}' does not exist in schema '${tableName}'`);
+      }
+      
+      validData[key] = value;
+    }
+
+    // Build INSERT query with parameterized values
+    const columns = ['project_id', ...Object.keys(validData)];
+    const values = [projectId, ...Object.values(validData)];
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+    const columnNames = columns.join(', ');
+
+    const query = `
+      INSERT INTO ${sanitizedTableName} (${columnNames}, created_at, updated_at)
+      VALUES (${placeholders}, NOW(), NOW())
+      RETURNING *
+    `;
+
+    const result = await this.prisma.$executeRawUnsafe(query, ...values);
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Update data in a schema table
+   */
+  async updateData(organizationId: string, projectId: string, tableName: string, id: string, data: any) {
+    // Verify schema exists
+    const schema = await this.prisma.projectSchema.findFirst({
+      where: {
+        projectId,
+        tableName,
+        project: { organizationId },
+      },
+    });
+
+    if (!schema) {
+      throw new NotFoundException(`Schema '${tableName}' not found in this project`);
+    }
+
+    const sanitizedTableName = `tenant_${tableName}_${projectId.replace(/-/g, '_')}`;
+    const fields = schema.fields as any[];
+    const fieldNames = fields.map(f => f.name);
+
+    // Validate and filter data based on schema fields
+    const validData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      // Validate column name
+      if (!/^[a-z][a-z0-9_]*$/i.test(key)) {
+        throw new BadRequestException(`Invalid field name: ${key}`);
+      }
+      
+      // Check if field exists in schema
+      if (!fieldNames.includes(key)) {
+        throw new BadRequestException(`Field '${key}' does not exist in schema '${tableName}'`);
+      }
+      
+      validData[key] = value;
+    }
+
+    if (Object.keys(validData).length === 0) {
+      throw new BadRequestException('No valid fields to update');
+    }
+    
+    // Build UPDATE query with parameterized values
+    const updates = Object.keys(validData).map((key, i) => `${key} = $${i + 1}`).join(', ');
+    const values = Object.values(validData);
+
+    const query = `
+      UPDATE ${sanitizedTableName}
+      SET ${updates}, updated_at = NOW()
+      WHERE id = $${values.length + 1} AND project_id = $${values.length + 2}
+      RETURNING *
+    `;
+
+    const result = await this.prisma.$executeRawUnsafe(query, ...values, id, projectId);
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Delete data from a schema table
+   */
+  async deleteData(organizationId: string, projectId: string, tableName: string, id: string) {
+    // Verify schema exists
+    const schema = await this.prisma.projectSchema.findFirst({
+      where: {
+        projectId,
+        tableName,
+        project: { organizationId },
+      },
+    });
+
+    if (!schema) {
+      throw new NotFoundException(`Schema '${tableName}' not found in this project`);
+    }
+
+    const sanitizedTableName = `tenant_${tableName}_${projectId.replace(/-/g, '_')}`;
+
+    const query = `
+      DELETE FROM ${sanitizedTableName}
+      WHERE id = $1 AND project_id = $2
+      RETURNING *
+    `;
+
+    const result = await this.prisma.$executeRawUnsafe(query, id, projectId);
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Build WHERE clause from JSON object (parameterized)
+   */
+  private buildWhereClause(where: any, startParamIndex: number = 1): { whereClause: string; whereParams: any[] } {
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIndex = startParamIndex;
+    
+    for (const [key, value] of Object.entries(where)) {
+      // Validate column name (prevent SQL injection)
+      if (!/^[a-z][a-z0-9_]*$/i.test(key)) {
+        throw new BadRequestException(`Invalid column name: ${key}`);
+      }
+
+      if (value === null) {
+        conditions.push(`${key} IS NULL`);
+      } else {
+        paramIndex++;
+        conditions.push(`${key} = $${paramIndex}`);
+        params.push(value);
+      }
+    }
+
+    return {
+      whereClause: conditions.join(' AND '),
+      whereParams: params,
+    };
+  }
+
+  /**
+   * Build ORDER BY clause from JSON object
+   */
+  private buildOrderByClause(orderBy: any): string {
+    const orders: string[] = [];
+    
+    for (const [key, direction] of Object.entries(orderBy)) {
+      // Validate column name (prevent SQL injection)
+      if (!/^[a-z][a-z0-9_]*$/i.test(key)) {
+        throw new BadRequestException(`Invalid column name for ORDER BY: ${key}`);
+      }
+      
+      const dir = direction === 'desc' || direction === 'DESC' ? 'DESC' : 'ASC';
+      orders.push(`${key} ${dir}`);
+    }
+
+    return orders.length > 0 ? `ORDER BY ${orders.join(', ')}` : '';
   }
 }
 

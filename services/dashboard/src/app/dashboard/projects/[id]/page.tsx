@@ -8,6 +8,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SchemaTestDrawer } from '@/components/SchemaTestDrawer';
 import { 
   GET_PROJECT, 
   GET_PROJECT_API_KEYS, 
@@ -91,6 +92,8 @@ export default function ProjectDetailPage() {
   const [newSchemaName, setNewSchemaName] = useState('');
   const [newSchemaFields, setNewSchemaFields] = useState<Array<{name: string; type: string}>>([{name: '', type: 'string'}]);
   const [creatingSchema, setCreatingSchema] = useState(false);
+  const [testDrawerOpen, setTestDrawerOpen] = useState(false);
+  const [selectedSchema, setSelectedSchema] = useState<ProjectSchema | null>(null);
 
   const { data: projectData, loading: projectLoading, refetch: refetchProject } = useQuery(GET_PROJECT, {
     variables: { id: projectId },
@@ -211,7 +214,37 @@ export default function ProjectDetailPage() {
   // Schema handlers
   const handleCreateSchema = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSchemaName.trim() || newSchemaFields.some(f => !f.name.trim())) return;
+    
+    // Validate table name format (lowercase, letters, numbers, underscores only, must start with letter)
+    const tableNameRegex = /^[a-z][a-z0-9_]*$/;
+    if (!newSchemaName.trim()) {
+      alert('Table name is required');
+      return;
+    }
+    if (!tableNameRegex.test(newSchemaName.trim())) {
+      alert('Table name must start with a lowercase letter and contain only lowercase letters, numbers, and underscores');
+      return;
+    }
+    
+    // Validate fields
+    const validFields = newSchemaFields.filter(f => f.name.trim());
+    if (validFields.length === 0) {
+      alert('At least one field is required');
+      return;
+    }
+    
+    // Validate field names
+    const fieldNameRegex = /^[a-z][a-z0-9_]*$/i;
+    for (const field of validFields) {
+      if (!field.name.trim()) {
+        alert('All fields must have a name');
+        return;
+      }
+      if (!fieldNameRegex.test(field.name.trim())) {
+        alert(`Field name "${field.name}" is invalid. Must start with a letter and contain only letters, numbers, and underscores`);
+        return;
+      }
+    }
 
     setCreatingSchema(true);
     try {
@@ -219,9 +252,13 @@ export default function ProjectDetailPage() {
         variables: {
           projectId,
           input: {
-            tableName: newSchemaName,
-            displayName: newSchemaName,
-            fields: newSchemaFields.map(f => ({ name: f.name, type: f.type, required: false })),
+            tableName: newSchemaName.trim().toLowerCase(),
+            displayName: newSchemaName.trim(),
+            fields: validFields.map(f => ({ 
+              name: f.name.trim().toLowerCase(), 
+              type: f.type, 
+              required: false 
+            })),
           },
         },
       });
@@ -233,7 +270,36 @@ export default function ProjectDetailPage() {
       alert('Schema created successfully!');
     } catch (error: any) {
       console.error('Error creating schema:', error);
-      alert(`Failed to create schema: ${error.message}`);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
+      
+      // Extract detailed error message
+      let errorMessage = 'Failed to create schema';
+      
+      // Check for GraphQL errors first
+      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+        const gqlError = error.graphQLErrors[0];
+        errorMessage = gqlError.message || errorMessage;
+        if (gqlError.extensions) {
+          console.error('GraphQL error extensions:', gqlError.extensions);
+        }
+      } 
+      // Check for network errors
+      else if (error.networkError) {
+        console.error('Network error:', error.networkError);
+        if (error.networkError.result && error.networkError.result.errors) {
+          errorMessage = error.networkError.result.errors[0]?.message || errorMessage;
+        } else if (error.networkError.message) {
+          errorMessage = `Network error: ${error.networkError.message}`;
+        } else {
+          errorMessage = 'Network error: Please check your connection';
+        }
+      } 
+      // Fallback to error message
+      else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Failed to create schema: ${errorMessage}`);
     } finally {
       setCreatingSchema(false);
     }
@@ -647,13 +713,25 @@ export default function ProjectDetailPage() {
                             <span>Created: {new Date(schema.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteSchema(schema.id)}
-                        >
-                          Delete
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSchema(schema);
+                              setTestDrawerOpen(true);
+                            }}
+                          >
+                            Test
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteSchema(schema.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -708,6 +786,19 @@ export default function ProjectDetailPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Schema Test Drawer */}
+      {selectedSchema && (
+        <SchemaTestDrawer
+          isOpen={testDrawerOpen}
+          onClose={() => {
+            setTestDrawerOpen(false);
+            setSelectedSchema(null);
+          }}
+          projectId={projectId}
+          schema={selectedSchema}
+        />
       )}
     </div>
   );

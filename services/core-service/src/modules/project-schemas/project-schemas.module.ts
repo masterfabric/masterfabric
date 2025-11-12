@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ProjectSchemasService } from './project-schemas.service';
 import { ProjectSchemasResolver } from './project-schemas.resolver';
 import { PrismaModule } from '../../prisma/prisma.module';
