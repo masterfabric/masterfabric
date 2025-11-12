@@ -1,0 +1,84 @@
+# =============================================================================
+# MasterFabric - Self-Hosted Production Override
+# =============================================================================
+# Purpose: Self-hosted production deployment için optimize edilmiş
+# Usage: docker compose -f docker-compose.yml -f docker-compose.selfhosted.yml up -d
+# =============================================================================
+
+services:
+  # ==========================================================================
+  # PRODUCTION OVERRIDES
+  # ==========================================================================
+
+  postgres_core:
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres/backups:/backups:rw
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+
+  redis_cache:
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+
+  core-service:
+    build:
+      target: production
+    restart: always
+    volumes: []
+    environment:
+      NODE_ENV: production
+
+  api-gateway:
+    build:
+      target: production
+    restart: always
+    volumes: []
+    environment:
+      NODE_ENV: production
+
+  provisioning-service:
+    build:
+      target: production
+    restart: always
+    volumes: []
+    environment:
+      NODE_ENV: production
+
+  tenant-runtime:
+    build:
+      target: production
+    restart: always
+    volumes: []
+    environment:
+      NODE_ENV: production
+
+  dashboard:
+    build:
+      target: production
+    restart: always
+    volumes: []
+    environment:
+      NODE_ENV: production
+
+  watchtower:
+    restart: always
+

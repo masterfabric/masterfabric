@@ -31,15 +31,28 @@ function createApolloClient() {
     };
   });
 
-  // Route GetSystemHealth query directly to core-service, everything else to gateway
+  // Public link for health queries (no auth required)
+  const publicHealthLink = from([coreHealthHttpLink]);
+  
+  // Authenticated link for gateway queries
+  const authenticatedGatewayLink = from([authLink, gatewayHttpLink]);
+
+  // Route GetSystemHealth query directly to core-service (public), everything else to gateway (authenticated)
   const splitLink = ApolloLink.split(
-    (operation) => operation.operationName === 'GetSystemHealth',
-    coreHealthHttpLink,
-    gatewayHttpLink
+    (operation) => {
+      // Check if this is a health query by operation name or query string
+      const isHealthQuery = 
+        operation.operationName === 'GetSystemHealth' ||
+        operation.query?.loc?.source?.body?.includes('systemHealth') ||
+        false;
+      return isHealthQuery;
+    },
+    publicHealthLink, // No auth for health checks - direct to Core Service
+    authenticatedGatewayLink // Auth required for gateway queries
   );
 
   return new ApolloClient({
-    link: from([authLink, splitLink]),
+    link: splitLink,
     cache: new InMemoryCache(),
     ssrMode: typeof window === 'undefined',
     defaultOptions: {

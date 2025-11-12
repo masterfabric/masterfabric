@@ -1,160 +1,317 @@
+# =============================================================================
+# MasterFabric - Self-Hosted Base Configuration
+# =============================================================================
+# Purpose: Lokal makinede çalışacak, self-hosted deployment için optimize
+# Usage: docker compose -f docker-compose.yml [override-file] up
+# =============================================================================
+
 services:
+  # ==========================================================================
+  # INFRASTRUCTURE SERVICES
+  # ==========================================================================
+
   postgres_core:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: masterfabric-postgres
+    hostname: postgres_core
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-masterfabric}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres/backups:/backups:rw
     networks:
       - masterfabric-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-masterfabric}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
   redis_cache:
     image: redis:7-alpine
     container_name: masterfabric-redis
+    hostname: redis_cache
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - masterfabric-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+  # ==========================================================================
+  # APPLICATION SERVICES
+  # ==========================================================================
 
   core-service:
     build:
       context: ./services/core-service
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    image: masterfabric/core-service:${VERSION:-local}
     container_name: masterfabric-core-service
+    hostname: core-service
     ports:
-      - "3005:3005"
+      - "${CORE_SERVICE_PORT:-3005}:3005"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3005
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres_core:5432/${POSTGRES_DB:-masterfabric}
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SERVICE_API_KEY: ${CORE_SERVICE_API_KEY:-core-service-api-key-change-me}
+      CORE_SERVICE_URL: http://core-service:3005/graphql
+      PROVISIONING_SERVICE_URL: http://provisioning-service:3003/graphql
+      TENANT_RUNTIME_URL: http://tenant-runtime:3004/graphql
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
     depends_on:
       postgres_core:
         condition: service_healthy
       redis_cache:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}
-      REDIS_HOST: redis_cache
-      REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
-      PORT: 3005
     networks:
       - masterfabric-network
-    volumes:
-      - ./services/core-service:/app
-      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
 
   api-gateway:
     build:
       context: ./services/api-gateway
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    image: masterfabric/api-gateway:${VERSION:-local}
     container_name: masterfabric-api-gateway
+    hostname: api-gateway
     ports:
-      - "3002:3002"
+      - "${API_GATEWAY_PORT:-3002}:3002"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3002
+      REDIS_HOST: redis_cache
+      REDIS_MASTER_HOST: redis_cache
+      REDIS_PORT: 6379
+      REDIS_MASTER_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CORE_SERVICE_URL: http://core-service:3005/graphql
+      PROVISIONING_SERVICE_URL: http://provisioning-service:3003/graphql
+      TENANT_RUNTIME_URL: http://tenant-runtime:3004/graphql
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      CORE_SERVICE_API_KEY: ${CORE_SERVICE_API_KEY:-core-service-api-key-change-me}
+      PROVISIONING_SERVICE_API_KEY: ${PROVISIONING_SERVICE_API_KEY:-provisioning-service-api-key-change-me}
+      TENANT_RUNTIME_SERVICE_API_KEY: ${TENANT_RUNTIME_SERVICE_API_KEY:-tenant-runtime-api-key-change-me}
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
     depends_on:
       postgres_core:
         condition: service_healthy
       redis_cache:
         condition: service_healthy
       core-service:
-        condition: service_started
-    environment:
-      REDIS_HOST: redis_cache
-      REDIS_PORT: 6379
-      CORE_SERVICE_URL: http://core-service:3005/graphql
-      PROVISIONING_SERVICE_URL: http://provisioning-service:3003/graphql
-      TENANT_RUNTIME_URL: http://tenant-runtime:3004/graphql
-      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL}
-      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
-      CACHE_TTL: ${CACHE_TTL}
-      PORT: 3002
+        condition: service_healthy
     networks:
       - masterfabric-network
-    volumes:
-      - ./services/api-gateway:/app
-      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
 
   provisioning-service:
     build:
       context: ./services/provisioning-service
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    image: masterfabric/provisioning-service:${VERSION:-local}
     container_name: masterfabric-provisioning
+    hostname: provisioning-service
     ports:
-      - "3003:3003"
+      - "${PROVISIONING_SERVICE_PORT:-3003}:3003"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3003
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres_core:5432/${POSTGRES_DB:-masterfabric}
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SERVICE_API_KEY: ${PROVISIONING_SERVICE_API_KEY:-provisioning-service-api-key-change-me}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
     depends_on:
       postgres_core:
         condition: service_healthy
       redis_cache:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}
-      REDIS_HOST: redis_cache
-      REDIS_PORT: 6379
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
-      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID}
-      PORT: 3003
     networks:
       - masterfabric-network
-    volumes:
-      - ./services/provisioning-service:/app
-      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
 
   tenant-runtime:
     build:
       context: ./services/tenant-runtime
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    image: masterfabric/tenant-runtime:${VERSION:-local}
     container_name: masterfabric-tenant-runtime
+    hostname: tenant-runtime
     ports:
-      - "3004:3004"
+      - "${TENANT_RUNTIME_PORT:-3004}:3004"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3004
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres_core:5432/${POSTGRES_DB:-masterfabric}
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SERVICE_API_KEY: ${TENANT_RUNTIME_SERVICE_API_KEY:-tenant-runtime-api-key-change-me}
+      TENANT_RUNTIME_SERVICE_API_KEY: ${TENANT_RUNTIME_SERVICE_API_KEY:-tenant-runtime-api-key-change-me}
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
     depends_on:
       postgres_core:
         condition: service_healthy
       redis_cache:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_core:5432/${POSTGRES_DB}
-      REDIS_HOST: redis_cache
-      REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: 3004
     networks:
       - masterfabric-network
-    volumes:
-      - ./services/tenant-runtime:/app
-      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
 
   dashboard:
     build:
       context: ./services/dashboard
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+        NEXT_PUBLIC_API_GATEWAY_URL: ${NEXT_PUBLIC_API_GATEWAY_URL:-http://localhost:3002/graphql}
+        NEXT_PUBLIC_CORE_SERVICE_URL: ${NEXT_PUBLIC_CORE_SERVICE_URL:-http://localhost:3005/graphql}
+        NEXT_PUBLIC_TENANT_RUNTIME_URL: ${NEXT_PUBLIC_TENANT_RUNTIME_URL:-http://localhost:3004/graphql}
+    image: masterfabric/dashboard:${VERSION:-local}
     container_name: masterfabric-dashboard
+    hostname: dashboard
     ports:
-      - "3000:3000"
-    depends_on:
-      - api-gateway
-      - tenant-runtime
+      - "${DASHBOARD_PORT:-3000}:3000"
     environment:
-      NEXT_PUBLIC_API_GATEWAY_URL: http://api-gateway:3002/graphql
-      NEXT_PUBLIC_TENANT_RUNTIME_URL: http://tenant-runtime:3004/graphql
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
+      NEXT_PUBLIC_API_GATEWAY_URL: ${NEXT_PUBLIC_API_GATEWAY_URL:-http://localhost:3002/graphql}
+      NEXT_PUBLIC_CORE_SERVICE_URL: ${NEXT_PUBLIC_CORE_SERVICE_URL:-http://localhost:3005/graphql}
+      NEXT_PUBLIC_TENANT_RUNTIME_URL: ${NEXT_PUBLIC_TENANT_RUNTIME_URL:-http://localhost:3004/graphql}
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      tenant-runtime:
+        condition: service_healthy
     networks:
       - masterfabric-network
-    volumes:
-      - ./services/dashboard:/app
-      - /app/node_modules
-      - /app/.next
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
 
   # Watchtower for auto-updates
   watchtower:
@@ -173,11 +330,23 @@ services:
       - masterfabric-network
     restart: unless-stopped
 
+# =============================================================================
+# VOLUMES - Self-hosted data persistence
+# =============================================================================
+
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
 
 networks:
   masterfabric-network:
     driver: bridge
-
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

@@ -1,6 +1,9 @@
 # Multi-stage build for production optimization
 FROM node:18-alpine AS base
 
+# Install wget for healthchecks
+RUN apk add --no-cache wget
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -19,7 +22,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including dev)
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -32,7 +35,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 # Start the application
 CMD ["npm", "run", "dev"]
@@ -60,7 +63,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 # Start the application
 CMD ["npm", "start"]

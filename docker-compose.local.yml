@@ -1,0 +1,144 @@
+# =============================================================================
+# MasterFabric - Local Development Override
+# =============================================================================
+# Purpose: Lokal makinede development için optimize edilmiş
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yml up
+# =============================================================================
+
+services:
+  # ==========================================================================
+  # DEVELOPMENT OVERRIDES
+  # ==========================================================================
+
+  postgres_core:
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres/backups:/backups:rw
+
+  redis_cache:
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+
+  core-service:
+    build:
+      target: dev
+    volumes:
+      - ./services/core-service:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: ["npm", "run", "start:dev"]
+    stdin_open: true
+    tty: true
+
+  api-gateway:
+    build:
+      target: dev
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: ["npm", "run", "start:dev"]
+    stdin_open: true
+    tty: true
+
+  provisioning-service:
+    build:
+      target: dev
+    volumes:
+      - ./services/provisioning-service:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: ["npm", "run", "start:dev"]
+    stdin_open: true
+    tty: true
+
+  tenant-runtime:
+    build:
+      target: dev
+    volumes:
+      - ./services/tenant-runtime:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: ["npm", "run", "start:dev"]
+    stdin_open: true
+    tty: true
+
+  dashboard:
+    build:
+      target: dev
+    volumes:
+      - ./services/dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    command: ["npm", "run", "dev"]
+    stdin_open: true
+    tty: true
+
+  # ==========================================================================
+  # DEVELOPMENT TOOLS
+  # ==========================================================================
+
+  prisma-studio:
+    image: node:20-alpine
+    container_name: masterfabric-prisma-studio
+    hostname: prisma-studio
+    working_dir: /app
+    volumes:
+      - ./services/core-service:/app:ro
+    ports:
+      - "${PRISMA_STUDIO_PORT:-5555}:5555"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres_core:5432/${POSTGRES_DB:-masterfabric}
+    command: >
+      sh -c "
+        apk add --no-cache wget &&
+        npm install &&
+        npx prisma generate &&
+        npx prisma studio --port 5555 --browser none
+      "
+    depends_on:
+      postgres_core:
+        condition: service_healthy
+    networks:
+      - masterfabric-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5555"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: masterfabric-redis-commander
+    hostname: redis-commander
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    environment:
+      REDIS_HOSTS: "local:redis_cache:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    depends_on:
+      - redis_cache
+    networks:
+      - masterfabric-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+

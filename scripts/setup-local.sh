@@ -49,6 +49,19 @@ check_prerequisites() {
     echo -e "${GREEN}✅ Prerequisites check completed${NC}"
 }
 
+# Create directory structure
+create_directories() {
+    echo -e "${BLUE}📁 Creating directory structure...${NC}"
+    
+    mkdir -p ./data/postgres
+    mkdir -p ./data/postgres/backups
+    mkdir -p ./data/redis
+    mkdir -p ./data/vault
+    mkdir -p ./logs/vault
+    
+    echo -e "${GREEN}✅ Directory structure created${NC}"
+}
+
 # Setup environment file
 setup_environment() {
     echo -e "${BLUE}📝 Setting up environment configuration...${NC}"
@@ -57,43 +70,10 @@ setup_environment() {
         if [ -f ".env.local.example" ]; then
             cp .env.local.example .env.local
             echo -e "${GREEN}✅ Created .env.local from example${NC}"
+            echo -e "${YELLOW}⚠️  Please review and update .env.local with your configuration${NC}"
         else
-            # Create basic .env.local
-            cat > .env.local << EOF
-# Database Configuration
-DATABASE_URL=postgresql://postgres:postgres123@postgres_core:5432/masterfabric
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres123
-POSTGRES_DB=masterfabric
-
-# Redis Configuration
-REDIS_HOST=redis_cache
-REDIS_PORT=6379
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-JWT_EXPIRES_IN=7d
-
-# Service URLs
-CORE_SERVICE_URL=http://core-service:3005/graphql
-PROVISIONING_SERVICE_URL=http://provisioning-service:3003/graphql
-TENANT_RUNTIME_URL=http://tenant-runtime:3004/graphql
-
-# API Gateway Configuration
-API_GATEWAY_PORT=3002
-RATE_LIMIT_TTL=60000
-RATE_LIMIT_MAX=100
-CACHE_TTL=300
-
-# Dashboard Configuration
-NEXT_PUBLIC_API_GATEWAY_URL=http://localhost:3002/graphql
-NEXT_PUBLIC_TENANT_RUNTIME_URL=http://localhost:3004/graphql
-
-# Cloudflare (Optional)
-CLOUDFLARE_API_TOKEN=
-CLOUDFLARE_ZONE_ID=
-EOF
-            echo -e "${GREEN}✅ Created basic .env.local${NC}"
+            echo -e "${RED}❌ .env.local.example not found${NC}"
+            exit 1
         fi
     else
         echo -e "${YELLOW}⚠️  .env.local already exists, skipping...${NC}"
@@ -157,7 +137,7 @@ start_services() {
     
     # Start all services with environment file
     local docker_compose_cmd=$(get_docker_compose_cmd)
-    $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up -d
+    $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up -d
     
     echo -e "${GREEN}✅ Services started${NC}"
 }
@@ -203,13 +183,13 @@ display_info() {
     echo ""
     echo -e "${BLUE}🔧 Development Tools:${NC}"
     echo -e "  Prisma Studio: ${GREEN}http://localhost:5555${NC}"
+    echo -e "  Redis Commander: ${GREEN}http://localhost:8081${NC}"
     echo -e "  GraphQL Playground: ${GREEN}http://localhost:3002/graphql${NC}"
     echo ""
     echo -e "${BLUE}📝 Useful Commands:${NC}"
-    echo -e "  View logs: ${YELLOW}docker-compose logs -f${NC}"
-    echo -e "  Stop services: ${YELLOW}docker-compose down${NC}"
-    echo -e "  Restart services: ${YELLOW}docker-compose restart${NC}"
-    echo -e "  Database studio: ${YELLOW}cd services/core-service && npx prisma studio${NC}"
+    echo -e "  View logs: ${YELLOW}docker compose --env-file .env.local logs -f${NC}"
+    echo -e "  Stop services: ${YELLOW}docker compose --env-file .env.local down${NC}"
+    echo -e "  Restart services: ${YELLOW}docker compose --env-file .env.local restart${NC}"
     echo ""
     echo -e "${BLUE}📚 Documentation:${NC}"
     echo -e "  Local Development: ${GREEN}docs/deployment/LOCAL_DEVELOPMENT.md${NC}"
@@ -219,6 +199,7 @@ display_info() {
 # Main execution
 main() {
     check_prerequisites
+    create_directories
     setup_environment
     install_dependencies
     setup_database

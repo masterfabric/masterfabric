@@ -104,9 +104,9 @@ pull_images() {
     
     local docker_compose_cmd=$(get_docker_compose_cmd)
     if [ "$ENVIRONMENT" = "production" ]; then
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml pull
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.selfhosted.yml pull
     else
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml pull
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml pull
     fi
     
     success "Images pulled successfully"
@@ -136,23 +136,23 @@ deploy_services() {
         
         # Update services one by one
         local docker_compose_cmd=$(get_docker_compose_cmd)
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build core-service
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.selfhosted.yml up -d --no-deps --build core-service
         sleep 10
         
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build api-gateway
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.selfhosted.yml up -d --no-deps --build api-gateway
         sleep 10
         
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build provisioning-service
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.selfhosted.yml up -d --no-deps --build provisioning-service
         sleep 10
         
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build tenant-runtime
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.selfhosted.yml up -d --no-deps --build tenant-runtime
         sleep 10
         
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps --build dashboard
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.selfhosted.yml up -d --no-deps --build dashboard
     else
         # Development deployment
         local docker_compose_cmd=$(get_docker_compose_cmd)
-        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+        $docker_compose_cmd --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up -d --build
     fi
     
     success "Services deployed successfully"
