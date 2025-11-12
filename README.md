@@ -243,6 +243,113 @@ mutation {
 
 ## 🧪 Development
 
+### 🔥 Live Development (Hot Reload)
+
+MasterFabric provides full hot reload support for live development. Your code changes are automatically detected and services are restarted.
+
+#### Quick Start
+
+**Recommended Method (Using Script):**
+```bash
+# Start all services in hot reload mode
+./dev-live.sh
+
+# Start only a specific service (e.g., core-service)
+./dev-live.sh core-service
+```
+
+**Manual Method:**
+```bash
+# Start all services in hot reload mode
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up --build
+```
+
+This command:
+- ✅ Starts all services in development mode
+- ✅ Automatically detects code changes (hot reload)
+- ✅ Mounts your local code to containers via volume mounts
+- ✅ Enables `--watch` mode for NestJS services
+- ✅ Uses `dev` mode for Next.js dashboard
+
+#### Service-Specific Development
+
+To develop a single service:
+
+```bash
+# Start only core-service (with hot reload)
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up core-service
+
+# Start only dashboard (with hot reload)
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up dashboard
+
+# Start only api-gateway (with hot reload)
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up api-gateway
+```
+
+#### Viewing Logs
+
+To monitor logs during live development:
+
+```bash
+# Watch logs for all services
+docker compose --env-file .env.local logs -f
+
+# Watch logs for a specific service
+docker compose --env-file .env.local logs -f core-service
+docker compose --env-file .env.local logs -f dashboard
+docker compose --env-file .env.local logs -f api-gateway
+```
+
+#### How Hot Reload Works?
+
+1. **NestJS Services** (core-service, api-gateway, provisioning-service, tenant-runtime):
+   - `docker-compose.local.yml` uses volume mounts
+   - `npm run start:dev` command runs `nest start --watch`
+   - Changes in TypeScript files are automatically detected
+   - Service is automatically recompiled and restarted
+
+2. **Next.js Dashboard**:
+   - `npm run dev` command enables Fast Refresh
+   - Changes in React components are reflected instantly
+   - No page refresh required
+
+#### Development Tips
+
+- **Code Changes**: Changes are reflected within 2-5 seconds after saving files
+- **Database Changes**: Run migrations for Prisma schema changes:
+  ```bash
+  cd services/core-service
+  npx prisma migrate dev --name your_migration_name
+  ```
+- **Adding New Packages**: Rebuild containers for `package.json` changes:
+  ```bash
+  docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml up --build
+  ```
+- **Restarting Services**: To restart only a specific service:
+  ```bash
+  docker compose --env-file .env.local restart core-service
+  ```
+
+#### Troubleshooting
+
+**Hot reload not working?**
+- Ensure containers are started with `docker-compose.local.yml`
+- Check that volume mounts are working correctly:
+  ```bash
+  docker compose --env-file .env.local ps
+  ```
+- Check logs:
+  ```bash
+  docker compose --env-file .env.local logs core-service
+  ```
+
+**Changes not reflecting?**
+- Check file permissions
+- Verify files inside the container:
+  ```bash
+  docker exec -it masterfabric-core-service ls -la /app/src
+  ```
+
 ### Running Tests
 ```bash
 npm test
