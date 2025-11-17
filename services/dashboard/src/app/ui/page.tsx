@@ -17,6 +17,7 @@ import { SignUp } from '@/components/ui/sign-up';
 import { ForgotPassword } from '@/components/ui/forgot-password';
 import { MagicLink } from '@/components/ui/magic-link';
 import { QRCodeSignIn } from '@/components/ui/qr-code-sign-in';
+import { Toast, useToast, ToastContainer } from '@/components/ui/toast';
 
 interface TestResult {
   success: boolean;
@@ -49,6 +50,9 @@ export default function TestPage() {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedFramework, setSelectedFramework] = useState('');
+  
+  // Toast management
+  const toast = useToast();
 
   // Test 1: API Gateway Connection
   const testApiConnection = async () => {
@@ -1135,6 +1139,294 @@ export default function TestPage() {
               </CardContent>
             </Card>
 
+            {/* Toast Variants Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Toast Variants</CardTitle>
+                <CardDescription>Toast notifications with different variants and styles</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Toast Examples</h4>
+                  <div className="space-y-4">
+                    <Toast
+                      variant="default"
+                      title="Default Toast"
+                      description="This is a default toast notification"
+                    />
+                    <Toast
+                      variant="success"
+                      title="Success!"
+                      description="Your changes have been saved successfully"
+                    />
+                    <Toast
+                      variant="error"
+                      title="Error"
+                      description="Something went wrong. Please try again."
+                    />
+                    <Toast
+                      variant="warning"
+                      title="Warning"
+                      description="Please review your settings before continuing"
+                    />
+                    <Toast
+                      variant="info"
+                      title="Information"
+                      description="New features are available in your dashboard"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Toast with Actions</h4>
+                  <div className="space-y-4">
+                    <Toast
+                      variant="success"
+                      title="File uploaded"
+                      description="Your file has been uploaded successfully"
+                      action={{
+                        label: "View",
+                        onClick: () => console.log("View clicked")
+                      }}
+                    />
+                    <Toast
+                      variant="error"
+                      title="Failed to delete"
+                      description="The item could not be deleted"
+                      action={{
+                        label: "Retry",
+                        onClick: () => console.log("Retry clicked")
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Interactive Toast Demo</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Click the buttons below to trigger toast notifications with different options
+                  </p>
+                  
+                  <div className="space-y-4">
+                    {/* Basic Variants */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Basic Variants</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => toast.showSuccess('Success!', 'Operation completed successfully', 3000)}
+                        >
+                          Show Success Toast
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => toast.showError('Error!', 'An error occurred', 3000)}
+                        >
+                          Show Error Toast
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.showWarning('Warning!', 'Please check your input', 3000)}
+                        >
+                          Show Warning Toast
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => toast.showInfo('Info', 'New update available', 3000)}
+                        >
+                          Show Info Toast
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Toasts with Actions */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Toasts with Actions</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => toast.addToast({
+                            variant: 'success',
+                            title: 'File uploaded',
+                            description: 'document.pdf has been uploaded successfully',
+                            duration: 5000,
+                            action: {
+                              label: 'View',
+                              onClick: () => console.log('View file clicked')
+                            }
+                          })}
+                        >
+                          Success with Action
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => toast.addToast({
+                            variant: 'error',
+                            title: 'Failed to delete',
+                            description: 'The item could not be deleted. Please try again.',
+                            duration: 5000,
+                            action: {
+                              label: 'Retry',
+                              onClick: () => console.log('Retry clicked')
+                            }
+                          })}
+                        >
+                          Error with Action
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.addToast({
+                            variant: 'warning',
+                            title: 'Unsaved changes',
+                            description: 'You have unsaved changes that will be lost',
+                            duration: 6000,
+                            action: {
+                              label: 'Save Now',
+                              onClick: () => console.log('Save clicked')
+                            }
+                          })}
+                        >
+                          Warning with Action
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Duration Options */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Different Durations</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.showSuccess('Quick Toast', 'This disappears in 1 second', 1000)}
+                        >
+                          Quick (1s)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.showInfo('Standard Toast', 'This disappears in 3 seconds', 3000)}
+                        >
+                          Standard (3s)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.showWarning('Long Toast', 'This disappears in 6 seconds', 6000)}
+                        >
+                          Long (6s)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.showInfo('Persistent Toast', 'This stays until manually closed', 0)}
+                        >
+                          Persistent (∞)
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Multiple Toasts */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Multiple Toasts</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            toast.showSuccess('Toast 1', 'First notification');
+                            setTimeout(() => toast.showInfo('Toast 2', 'Second notification'), 300);
+                            setTimeout(() => toast.showWarning('Toast 3', 'Third notification'), 600);
+                          }}
+                        >
+                          Show 3 Toasts
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            for (let i = 1; i <= 5; i++) {
+                              setTimeout(() => {
+                                toast.showInfo(`Notification ${i}`, `This is toast number ${i}`, 4000);
+                              }, i * 200);
+                            }
+                          }}
+                        >
+                          Show 5 Toasts
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Custom Messages */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Custom Messages</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => toast.showSuccess(
+                            'Welcome back!',
+                            'You have 3 new messages and 2 pending tasks',
+                            4000
+                          )}
+                        >
+                          Welcome Message
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.showInfo(
+                            'System Update',
+                            'A new version is available. Click here to update.',
+                            5000
+                          )}
+                        >
+                          Update Notification
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => toast.showError(
+                            'Connection Lost',
+                            'Unable to connect to server. Check your internet connection.',
+                            0
+                          )}
+                        >
+                          Error Notification
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Toast Management */}
+                    <div className="border-t pt-4">
+                      <Label className="text-xs text-muted-foreground mb-2 block">Toast Management</Label>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            toast.toasts.forEach(t => toast.removeToast(t.id));
+                          }}
+                          disabled={toast.toasts.length === 0}
+                        >
+                          Clear All ({toast.toasts.length})
+                        </Button>
+                        <span className="text-xs text-muted-foreground">
+                          {toast.toasts.length === 0 
+                            ? 'No active toasts' 
+                            : `${toast.toasts.length} toast${toast.toasts.length > 1 ? 's' : ''} active`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Accordion Showcase */}
             <Card>
               <CardHeader>
@@ -1356,6 +1648,13 @@ export default function TestPage() {
             </Card>
           </div>
         )}
+
+        {/* Toast Container - Always visible */}
+        <ToastContainer
+          toasts={toast.toasts}
+          onRemove={toast.removeToast}
+          position="top-right"
+        />
 
         {/* Footer */}
         <footer className="border-t bg-muted/50 mt-16">
