@@ -18,6 +18,7 @@ import { ForgotPassword } from '@/components/ui/forgot-password';
 import { MagicLink } from '@/components/ui/magic-link';
 import { QRCodeSignIn } from '@/components/ui/qr-code-sign-in';
 import { Toast, useToast, ToastContainer } from '@/components/ui/toast';
+import { ProgressCard, ProcessingRequestCard, ProgressCardGroup } from '@/components/ui/progress-card';
 
 interface TestResult {
   success: boolean;
@@ -53,6 +54,10 @@ export default function TestPage() {
   
   // Toast management
   const toast = useToast();
+  
+  // Progress card states
+  const [progressValue, setProgressValue] = useState(0);
+  const [isProgressing, setIsProgressing] = useState(false);
 
   // Test 1: API Gateway Connection
   const testApiConnection = async () => {
@@ -1133,6 +1138,254 @@ export default function TestPage() {
                       <p className="text-red-800 text-sm">
                         This is an error alert message.
                       </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Progress Card Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Progress Cards</CardTitle>
+                <CardDescription>Card components for displaying progress, loading states, and status updates</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Progress Card Variants</h4>
+                  <ProgressCardGroup columns={2}>
+                    <ProgressCard
+                      status="loading"
+                      title="Processing your request"
+                      description="Please wait while we process your request. Do not refresh the page."
+                      onCancel={() => console.log('Cancelled')}
+                    />
+                    <ProgressCard
+                      status="loading"
+                      title="Uploading files"
+                      description="Uploading 3 files... This may take a few minutes."
+                      showProgress
+                      progress={45}
+                      onCancel={() => console.log('Cancelled')}
+                    />
+                    <ProgressCard
+                      status="success"
+                      title="Request completed"
+                      description="Your request has been processed successfully."
+                    />
+                    <ProgressCard
+                      status="error"
+                      title="Request failed"
+                      description="An error occurred while processing your request. Please try again."
+                    />
+                    <ProgressCard
+                      status="warning"
+                      title="Action required"
+                      description="Please review the changes before proceeding."
+                    />
+                    <ProgressCard
+                      status="pending"
+                      title="Waiting for approval"
+                      description="Your request is pending approval from an administrator."
+                    />
+                  </ProgressCardGroup>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Processing Request Card</h4>
+                  <div className="max-w-md mx-auto">
+                    <ProcessingRequestCard
+                      title="Processing your request"
+                      description="Please wait while we process your request. Do not refresh the page."
+                      onCancel={() => console.log('Cancelled')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Interactive Test Demo</h4>
+                  <div className="space-y-6">
+                    {/* Progress Simulation */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Progress Simulation</Label>
+                      <div className="space-y-4">
+                        <div className="max-w-md mx-auto">
+                          <ProgressCard
+                            status={isProgressing ? 'loading' : progressValue === 100 ? 'success' : progressValue > 0 && progressValue < 100 ? 'loading' : 'pending'}
+                            title={
+                              isProgressing
+                                ? 'Processing your request'
+                                : progressValue === 100
+                                ? 'Request completed'
+                                : progressValue > 0
+                                ? 'Processing your request'
+                                : 'Ready to start'
+                            }
+                            description={
+                              isProgressing
+                                ? 'Please wait while we process your request. Do not refresh the page.'
+                                : progressValue === 100
+                                ? 'Your request has been processed successfully.'
+                                : progressValue > 0
+                                ? `Processing... ${progressValue}% complete`
+                                : 'Click start to begin processing.'
+                            }
+                            showProgress={isProgressing || progressValue > 0}
+                            progress={progressValue}
+                            onCancel={isProgressing ? () => {
+                              setIsProgressing(false);
+                              setProgressValue(0);
+                            } : undefined}
+                            cancelLabel={isProgressing ? 'Cancel' : undefined}
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setIsProgressing(true);
+                              setProgressValue(0);
+                              const interval = setInterval(() => {
+                                setProgressValue((prev) => {
+                                  if (prev >= 100) {
+                                    clearInterval(interval);
+                                    setIsProgressing(false);
+                                    return 100;
+                                  }
+                                  return prev + 10;
+                                });
+                              }, 500);
+                            }}
+                            disabled={isProgressing}
+                          >
+                            Start Processing
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setProgressValue(0);
+                              setIsProgressing(false);
+                            }}
+                          >
+                            Reset
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Change Test */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Status Change Test</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            toast.showSuccess('Status changed', 'Progress card status updated to loading');
+                            setIsProgressing(true);
+                            setProgressValue(0);
+                          }}
+                        >
+                          Test Loading
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setIsProgressing(false);
+                            setProgressValue(100);
+                            toast.showSuccess('Status changed', 'Progress card status updated to success');
+                          }}
+                        >
+                          Test Success
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setIsProgressing(false);
+                            setProgressValue(0);
+                            toast.showWarning('Status changed', 'Progress card status updated to pending');
+                          }}
+                        >
+                          Test Pending
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setIsProgressing(false);
+                            setProgressValue(0);
+                            toast.showInfo('Status changed', 'Progress card reset');
+                          }}
+                        >
+                          Reset All
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Quick Actions</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setIsProgressing(true);
+                            setProgressValue(25);
+                            setTimeout(() => setProgressValue(50), 1000);
+                            setTimeout(() => setProgressValue(75), 2000);
+                            setTimeout(() => {
+                              setProgressValue(100);
+                              setIsProgressing(false);
+                            }, 3000);
+                          }}
+                          disabled={isProgressing}
+                        >
+                          Simulate Upload (25% → 50% → 75% → 100%)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setIsProgressing(true);
+                            setProgressValue(0);
+                            let current = 0;
+                            const interval = setInterval(() => {
+                              current += 5;
+                              setProgressValue(current);
+                              if (current >= 100) {
+                                clearInterval(interval);
+                                setIsProgressing(false);
+                              }
+                            }, 200);
+                          }}
+                          disabled={isProgressing}
+                        >
+                          Fast Progress (5% increments)
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setIsProgressing(true);
+                            setProgressValue(0);
+                            let current = 0;
+                            const interval = setInterval(() => {
+                              current += 1;
+                              setProgressValue(current);
+                              if (current >= 100) {
+                                clearInterval(interval);
+                                setIsProgressing(false);
+                              }
+                            }, 50);
+                          }}
+                          disabled={isProgressing}
+                        >
+                          Smooth Progress (1% increments)
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
