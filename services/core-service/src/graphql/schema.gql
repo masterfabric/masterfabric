@@ -33,7 +33,15 @@ input CreateProjectSchemaInput {
   enableRLS: Boolean
   enableRealtime: Boolean
   fields: JSON!
+  metadata: JSON
   policies: JSON
+  rateLimit: Float
+  requireAuth: Boolean
+  tableName: String!
+}
+
+input CreateSchemaDataInput {
+  data: JSON!
   tableName: String!
 }
 
@@ -45,6 +53,11 @@ scalar DateTime
 type DeleteResult {
   message: String!
   success: Boolean!
+}
+
+input DeleteSchemaDataInput {
+  id: String!
+  tableName: String!
 }
 
 input InviteDeveloperInput {
@@ -61,10 +74,12 @@ type Mutation {
   createApiKey(name: String!, projectId: ID!): ApiKey!
   createProject(input: CreateProjectDto!): Project!
   createProjectSchema(input: CreateProjectSchemaInput!, projectId: String!): ProjectSchema!
+  createSchemaData(input: CreateSchemaDataInput!, projectId: String!): JSON!
   deleteApiKey(id: ID!): ApiKey!
   deleteOrganization(id: ID!): Organization!
   deleteProject(id: ID!): Project!
   deleteProjectSchema(projectId: String!, schemaId: String!): ProjectSchema!
+  deleteSchemaData(input: DeleteSchemaDataInput!, projectId: String!): JSON!
   deleteUser(id: String!): DeleteResult!
   inviteDeveloper(input: InviteDeveloperInput!): User!
   login(email: String!, password: String!): AuthResponse!
@@ -74,6 +89,7 @@ type Mutation {
   updateProject(id: ID!, input: UpdateProjectDto!): Project!
   updateProjectSchema(input: UpdateProjectSchemaInput!, projectId: String!, schemaId: String!): ProjectSchema!
   updateRedisConnection(input: UpdateRedisConnectionDto!): Organization!
+  updateSchemaData(input: UpdateSchemaDataInput!, projectId: String!): JSON!
 }
 
 type Organization {
@@ -121,14 +137,20 @@ type ProjectSchema {
   enableRealtime: Boolean!
   fields: JSON!
   id: ID!
+  lastQueryAt: DateTime
+  metadata: JSON
   policies: JSON
   projectId: String!
+  queryCount: Int!
+  rateLimit: Int
+  requireAuth: Boolean!
   tableName: String!
   updatedAt: DateTime!
 }
 
 type Query {
   developerProjects: [Project!]!
+  generateSchemaDocs(projectId: String!, schemaId: String!): JSON!
   myOrganization: Organization!
   organization(id: ID!): Organization!
   organizationStatus(id: ID!): OrganizationStatus!
@@ -139,9 +161,18 @@ type Query {
   projectSchema(projectId: String!, schemaId: String!): ProjectSchema!
   projectSchemas(projectId: String!): [ProjectSchema!]!
   projects: [Project!]!
+  querySchemaData(input: QuerySchemaDataInput!, projectId: String!): [JSON!]!
   systemHealth: SystemHealth!
   testPostgresConnection: ConnectionTestResult!
   testRedisConnection: ConnectionTestResult!
+}
+
+input QuerySchemaDataInput {
+  limit: Float
+  offset: Float
+  orderBy: JSON
+  tableName: String!
+  where: JSON
 }
 
 input RegisterInput {
@@ -188,13 +219,22 @@ input UpdateProjectSchemaInput {
   enableRLS: Boolean
   enableRealtime: Boolean
   fields: JSON
+  metadata: JSON
   policies: JSON
+  rateLimit: Float
+  requireAuth: Boolean
 }
 
 input UpdateRedisConnectionDto {
   redisHost: String
   redisPassword: String
   redisPort: Int
+}
+
+input UpdateSchemaDataInput {
+  data: JSON!
+  id: String!
+  tableName: String!
 }
 
 type User {

@@ -38,5 +38,25 @@ export class UpdateProjectSchemaInput {
   @IsOptional()
   @IsBoolean()
   enableRealtime?: boolean;
+
+  // Authentication & Rate Limiting
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  requireAuth?: boolean;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  rateLimit?: number; // Max queries per minute
+
+  // Metadata
+  @Field(() => GraphQLJSON, { nullable: true })
+  @IsOptional()
+  metadata?: {
+    description?: string;
+    tags?: string[];
+    version?: string;
+    [key: string]: any;
+  };
 }
 

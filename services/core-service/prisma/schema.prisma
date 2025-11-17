@@ -150,6 +150,15 @@ model ProjectSchema {
   // Real-time features
   enableRealtime Boolean @default(false)
 
+  // Authentication & Rate Limiting
+  requireAuth Boolean @default(true) // Require authentication to access this schema
+  rateLimit   Int? // Max queries per minute (null = no limit)
+
+  // Statistics & Metadata
+  queryCount  Int       @default(0) // Total number of queries executed
+  lastQueryAt DateTime? // Last time a query was executed
+  metadata    Json? // Additional metadata: {description, tags, version, etc.}
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

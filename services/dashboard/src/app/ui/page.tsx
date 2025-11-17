@@ -12,6 +12,11 @@ import { QRCodeTest } from '@/components/ui/qr-code-test';
 import { Dropdown, MultiSelectDropdown } from '@/components/ui/dropdown';
 import { SearchDropdown } from '@/components/ui/search-dropdown';
 import { FooterSystemStatus } from '@/components/FooterSystemStatus';
+import { SignIn } from '@/components/ui/sign-in';
+import { SignUp } from '@/components/ui/sign-up';
+import { ForgotPassword } from '@/components/ui/forgot-password';
+import { MagicLink } from '@/components/ui/magic-link';
+import { QRCodeSignIn } from '@/components/ui/qr-code-sign-in';
 
 interface TestResult {
   success: boolean;
@@ -919,6 +924,25 @@ export default function TestPage() {
               </CardContent>
             </Card>
 
+            {/* Authentication Components Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Authentication Components</CardTitle>
+                <CardDescription>Functional authentication components for sign-in, sign-up, password reset, magic link, and QR code authentication</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <SignIn showLinks={false} />
+                  <SignUp showLinks={false} />
+                  <ForgotPassword />
+                  <MagicLink />
+                  <div className="md:col-span-2">
+                    <QRCodeSignIn />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Dropdown Components Showcase */}
             <Card>
               <CardHeader>
@@ -1323,8 +1347,8 @@ export default function TestPage() {
                   <div>
                     <h4 className="text-sm font-medium">New Components</h4>
                     <p className="text-sm text-muted-foreground">
-                      UserBioCard, QRCodeTest, and Dropdown components are new additions to the showcase. 
-                      The dropdown components include basic dropdown, multi-select, and searchable variants with grouping support.
+                      UserBioCard, QRCodeTest, Dropdown components, and Authentication components are new additions to the showcase. 
+                      The authentication components include sign-in, sign-up, forgot password, magic link, and QR code sign-in with full functionality.
                     </p>
                   </div>
                 </div>
@@ -1426,3 +1450,4 @@ export default function TestPage() {
     </div>
   );
 }
+

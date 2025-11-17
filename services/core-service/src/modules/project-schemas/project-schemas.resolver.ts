@@ -1,6 +1,7 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ProjectSchemasService } from './project-schemas.service';
+import { ProjectSchemasDocsService } from './project-schemas-docs.service';
 import { ProjectSchema } from './entities/project-schema.entity';
 import { CreateProjectSchemaInput } from './dto/create-project-schema.dto';
 import { UpdateProjectSchemaInput } from './dto/update-project-schema.dto';
@@ -13,7 +14,10 @@ import GraphQLJSON from 'graphql-type-json';
 
 @Resolver(() => ProjectSchema)
 export class ProjectSchemasResolver {
-  constructor(private readonly projectSchemasService: ProjectSchemasService) {}
+  constructor(
+    private readonly projectSchemasService: ProjectSchemasService,
+    private readonly docsService: ProjectSchemasDocsService,
+  ) {}
 
   /**
    * Create a new schema for a project
@@ -174,6 +178,21 @@ export class ProjectSchemasResolver {
       input.tableName,
       input.id
     );
+  }
+
+  /**
+   * Generate API documentation for a schema
+   * Requires OWNER, CUSTOMER, or DEVELOPER role
+   */
+  @Query(() => GraphQLJSON, { name: 'generateSchemaDocs' })
+  @UseGuards(GqlJwtAuthGuard, GqlRolesGuard)
+  @Roles(UserRole.OWNER, UserRole.CUSTOMER, UserRole.DEVELOPER)
+  async generateSchemaDocs(
+    @Args('projectId') projectId: string,
+    @Args('schemaId') schemaId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.docsService.generateSchemaDocs(user.organizationId, projectId, schemaId);
   }
 }
 

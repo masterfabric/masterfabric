@@ -19,6 +19,7 @@ import {
   DELETE_TENANT_USER,
   GET_PROJECT_SCHEMAS,
   CREATE_PROJECT_SCHEMA,
+  UPDATE_PROJECT_SCHEMA,
   DELETE_PROJECT_SCHEMA,
   GENERATE_PROJECT_JWT_SECRET
 } from '@/lib/graphql';
@@ -62,7 +63,13 @@ interface ProjectSchema {
   fields: any;
   enableRLS: boolean;
   enableRealtime: boolean;
+  requireAuth?: boolean;
+  rateLimit?: number;
+  queryCount?: number;
+  lastQueryAt?: string;
+  metadata?: any;
   createdAt: string;
+  updatedAt: string;
 }
 
 type TabType = 'overview' | 'api-keys' | 'tenant-users' | 'schemas' | 'auth-settings';
@@ -89,9 +96,14 @@ export default function ProjectDetailPage() {
 
   // Schemas state
   const [showCreateSchema, setShowCreateSchema] = useState(false);
+  const [showEditSchema, setShowEditSchema] = useState(false);
+  const [editingSchema, setEditingSchema] = useState<ProjectSchema | null>(null);
   const [newSchemaName, setNewSchemaName] = useState('');
   const [newSchemaFields, setNewSchemaFields] = useState<Array<{name: string; type: string}>>([{name: '', type: 'string'}]);
+  const [newSchemaRequireAuth, setNewSchemaRequireAuth] = useState(true);
+  const [newSchemaRateLimit, setNewSchemaRateLimit] = useState<number | undefined>(undefined);
   const [creatingSchema, setCreatingSchema] = useState(false);
+  const [updatingSchema, setUpdatingSchema] = useState(false);
   const [testDrawerOpen, setTestDrawerOpen] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<ProjectSchema | null>(null);
 
@@ -120,6 +132,7 @@ export default function ProjectDetailPage() {
   const [registerTenantUser] = useMutation(REGISTER_TENANT_USER);
   const [deleteTenantUser] = useMutation(DELETE_TENANT_USER);
   const [createProjectSchema] = useMutation(CREATE_PROJECT_SCHEMA);
+  const [updateProjectSchema] = useMutation(UPDATE_PROJECT_SCHEMA);
   const [deleteProjectSchema] = useMutation(DELETE_PROJECT_SCHEMA);
   const [generateJwtSecret] = useMutation(GENERATE_PROJECT_JWT_SECRET);
 
@@ -302,6 +315,38 @@ export default function ProjectDetailPage() {
       alert(`Failed to create schema: ${errorMessage}`);
     } finally {
       setCreatingSchema(false);
+    }
+  };
+
+  const handleUpdateSchema = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSchema) return;
+
+    setUpdatingSchema(true);
+    try {
+      await updateProjectSchema({
+        variables: {
+          projectId,
+          schemaId: editingSchema.id,
+          input: {
+            displayName: editingSchema.displayName,
+            requireAuth: editingSchema.requireAuth,
+            rateLimit: editingSchema.rateLimit || null,
+            enableRLS: editingSchema.enableRLS,
+            enableRealtime: editingSchema.enableRealtime,
+          },
+        },
+      });
+
+      setShowEditSchema(false);
+      setEditingSchema(null);
+      refetchSchemas();
+      alert('Schema updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating schema:', error);
+      alert(`Failed to update schema: ${error.message}`);
+    } finally {
+      setUpdatingSchema(false);
     }
   };
 
@@ -710,10 +755,24 @@ export default function ProjectDetailPage() {
                           <div className="flex gap-4 text-xs text-muted-foreground mt-2">
                             <span>RLS: {schema.enableRLS ? '✓' : '✗'}</span>
                             <span>Realtime: {schema.enableRealtime ? '✓' : '✗'}</span>
-                            <span>Created: {new Date(schema.createdAt).toLocaleDateString()}</span>
+                            <span>Auth: {schema.requireAuth !== false ? '✓' : '✗'}</span>
+                            {schema.rateLimit && <span>Rate Limit: {schema.rateLimit}/min</span>}
+                            {schema.queryCount !== undefined && <span>Queries: {schema.queryCount}</span>}
+                            {schema.lastQueryAt && <span>Last Query: {new Date(schema.lastQueryAt).toLocaleString()}</span>}
+                            <span>Updated: {new Date(schema.updatedAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingSchema(schema);
+                              setShowEditSchema(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -739,6 +798,121 @@ export default function ProjectDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Edit Schema Modal */}
+          {showEditSchema && editingSchema && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Edit Schema: {editingSchema.displayName || editingSchema.tableName}</CardTitle>
+                <CardDescription>Update schema settings and configuration</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdateSchema} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Display Name</label>
+                    <input
+                      type="text"
+                      value={editingSchema.displayName || ''}
+                      onChange={(e) => setEditingSchema({ ...editingSchema, displayName: e.target.value })}
+                      placeholder="Schema display name"
+                      className="w-full px-3 py-2 border rounded-md"
+                      disabled={updatingSchema}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="requireAuth"
+                      checked={editingSchema.requireAuth !== false}
+                      onChange={(e) => setEditingSchema({ ...editingSchema, requireAuth: e.target.checked })}
+                      className="w-4 h-4"
+                      disabled={updatingSchema}
+                    />
+                    <label htmlFor="requireAuth" className="text-sm font-medium">
+                      Require Authentication
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Rate Limit (queries per minute)</label>
+                    <input
+                      type="number"
+                      value={editingSchema.rateLimit || ''}
+                      onChange={(e) => setEditingSchema({ 
+                        ...editingSchema, 
+                        rateLimit: e.target.value ? parseInt(e.target.value) : undefined 
+                      })}
+                      placeholder="Leave empty for no limit"
+                      className="w-full px-3 py-2 border rounded-md"
+                      disabled={updatingSchema}
+                      min="1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Maximum number of queries allowed per minute. Leave empty for unlimited.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="enableRLS"
+                      checked={editingSchema.enableRLS}
+                      onChange={(e) => setEditingSchema({ ...editingSchema, enableRLS: e.target.checked })}
+                      className="w-4 h-4"
+                      disabled={updatingSchema}
+                    />
+                    <label htmlFor="enableRLS" className="text-sm font-medium">
+                      Enable Row Level Security (RLS)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="enableRealtime"
+                      checked={editingSchema.enableRealtime}
+                      onChange={(e) => setEditingSchema({ ...editingSchema, enableRealtime: e.target.checked })}
+                      className="w-4 h-4"
+                      disabled={updatingSchema}
+                    />
+                    <label htmlFor="enableRealtime" className="text-sm font-medium">
+                      Enable Realtime
+                    </label>
+                  </div>
+
+                  {editingSchema.queryCount !== undefined && (
+                    <div className="p-3 bg-muted rounded-md">
+                      <p className="text-sm font-medium mb-1">Statistics</p>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>Total Queries: {editingSchema.queryCount}</p>
+                        {editingSchema.lastQueryAt && (
+                          <p>Last Query: {new Date(editingSchema.lastQueryAt).toLocaleString()}</p>
+                        )}
+                        <p>Last Updated: {new Date(editingSchema.updatedAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={updatingSchema}>
+                      {updatingSchema ? 'Updating...' : 'Update Schema'}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowEditSchema(false);
+                        setEditingSchema(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

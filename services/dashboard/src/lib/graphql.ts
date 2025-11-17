@@ -613,6 +613,11 @@ export const GET_PROJECT_SCHEMAS = gql`
       enableRLS
       policies
       enableRealtime
+      requireAuth
+      rateLimit
+      queryCount
+      lastQueryAt
+      metadata
       createdAt
       updatedAt
     }
@@ -644,6 +649,9 @@ export const UPDATE_PROJECT_SCHEMA = gql`
       enableRLS
       policies
       enableRealtime
+      requireAuth
+      rateLimit
+      metadata
       updatedAt
     }
   }

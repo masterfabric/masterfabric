@@ -50,6 +50,10 @@ export class ProjectSchemasService {
         enableRLS: createDto.enableRLS || false,
         policies: createDto.policies as any,
         enableRealtime: createDto.enableRealtime || false,
+        requireAuth: createDto.requireAuth !== undefined ? createDto.requireAuth : true,
+        rateLimit: createDto.rateLimit || null,
+        metadata: createDto.metadata as any || null,
+        queryCount: 0,
       },
     });
 
@@ -154,6 +158,9 @@ export class ProjectSchemasService {
         enableRLS: updateDto.enableRLS,
         policies: updateDto.policies as any,
         enableRealtime: updateDto.enableRealtime,
+        requireAuth: updateDto.requireAuth,
+        rateLimit: updateDto.rateLimit,
+        metadata: updateDto.metadata as any,
       },
     });
   }
@@ -428,6 +435,10 @@ export class ProjectSchemasService {
     }
 
     const result = await this.prisma.$queryRawUnsafe(query, ...params);
+    
+    // Update query statistics
+    await this.incrementQueryCount(organizationId, projectId, tableName);
+    
     return Array.isArray(result) ? result : [];
   }
 
@@ -481,6 +492,10 @@ export class ProjectSchemasService {
     `;
 
     const result = await this.prisma.$executeRawUnsafe(query, ...values);
+    
+    // Update query statistics
+    await this.incrementQueryCount(organizationId, projectId, tableName);
+    
     return Array.isArray(result) && result.length > 0 ? result[0] : null;
   }
 
@@ -537,6 +552,10 @@ export class ProjectSchemasService {
     `;
 
     const result = await this.prisma.$executeRawUnsafe(query, ...values, id, projectId);
+    
+    // Update query statistics
+    await this.incrementQueryCount(organizationId, projectId, tableName);
+    
     return Array.isArray(result) && result.length > 0 ? result[0] : null;
   }
 
@@ -566,6 +585,10 @@ export class ProjectSchemasService {
     `;
 
     const result = await this.prisma.$executeRawUnsafe(query, id, projectId);
+    
+    // Update query statistics
+    await this.incrementQueryCount(organizationId, projectId, tableName);
+    
     return Array.isArray(result) && result.length > 0 ? result[0] : null;
   }
 
@@ -596,6 +619,28 @@ export class ProjectSchemasService {
       whereClause: conditions.join(' AND '),
       whereParams: params,
     };
+  }
+
+  /**
+   * Increment query count and update last query time
+   */
+  private async incrementQueryCount(organizationId: string, projectId: string, tableName: string) {
+    try {
+      await this.prisma.projectSchema.updateMany({
+        where: {
+          projectId,
+          tableName,
+          project: { organizationId },
+        },
+        data: {
+          queryCount: { increment: 1 },
+          lastQueryAt: new Date(),
+        },
+      });
+    } catch (error) {
+      // Silently fail - statistics update shouldn't break the query
+      console.error('Failed to update query statistics:', error);
+    }
   }
 
   /**
