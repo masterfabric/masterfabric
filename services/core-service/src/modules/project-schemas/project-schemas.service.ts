@@ -37,8 +37,13 @@ export class ProjectSchemasService {
       throw new BadRequestException(`Table '${createDto.tableName}' already exists in this project`);
     }
 
+    // Ensure fields are in array format
+    const normalizedFields = Array.isArray(createDto.fields) 
+      ? createDto.fields 
+      : this.normalizeFields(createDto.fields);
+
     // Validate field types
-    this.validateFields(createDto.fields);
+    this.validateFields(normalizedFields);
 
     // Create schema metadata
     const schema = await this.prisma.projectSchema.create({
@@ -46,7 +51,7 @@ export class ProjectSchemasService {
         projectId,
         tableName: createDto.tableName,
         displayName: createDto.displayName || createDto.tableName,
-        fields: createDto.fields as any,
+        fields: normalizedFields as any,
         enableRLS: createDto.enableRLS || false,
         policies: createDto.policies as any,
         enableRealtime: createDto.enableRealtime || false,
@@ -54,13 +59,17 @@ export class ProjectSchemasService {
         rateLimit: createDto.rateLimit || null,
         metadata: createDto.metadata as any || null,
         queryCount: 0,
-      },
+      } as any,
     });
 
     // Create actual table in database
-    await this.createPhysicalTable(projectId, createDto.tableName, createDto.fields);
+    await this.createPhysicalTable(projectId, createDto.tableName, normalizedFields);
 
-    return schema;
+    // Return schema with normalized fields
+    return {
+      ...schema,
+      fields: this.normalizeFields(schema.fields),
+    };
   }
 
   /**
@@ -79,10 +88,66 @@ export class ProjectSchemasService {
       throw new NotFoundException('Project not found or access denied');
     }
 
-    return this.prisma.projectSchema.findMany({
+    const schemas = await this.prisma.projectSchema.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Ensure fields are properly formatted as arrays
+    return schemas.map(schema => ({
+      ...schema,
+      fields: this.normalizeFields(schema.fields),
+    }));
+  }
+
+  /**
+   * Normalize fields to ensure they're always in array format
+   */
+  private normalizeFields(fields: any): any[] {
+    if (!fields) {
+      return [];
+    }
+
+    // If already an array, return as-is
+    if (Array.isArray(fields)) {
+      return fields;
+    }
+
+    // If it's a string, try to parse it
+    if (typeof fields === 'string') {
+      try {
+        const parsed = JSON.parse(fields);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+        // If parsed is an object, convert to array
+        if (typeof parsed === 'object' && parsed !== null) {
+          return Object.entries(parsed).map(([name, field]: [string, any]) => ({
+            name,
+            type: typeof field === 'string' ? field : (field?.type || 'string'),
+            required: field?.required || false,
+            unique: field?.unique || false,
+            default: field?.default,
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to parse fields JSON:', e);
+        return [];
+      }
+    }
+
+    // If it's an object, convert to array format
+    if (typeof fields === 'object' && fields !== null && !Array.isArray(fields)) {
+      return Object.entries(fields).map(([name, field]: [string, any]) => ({
+        name,
+        type: typeof field === 'string' ? field : (field?.type || 'string'),
+        required: field?.required || false,
+        unique: field?.unique || false,
+        default: field?.default,
+      }));
+    }
+
+    return [];
   }
 
   /**
@@ -112,7 +177,11 @@ export class ProjectSchemasService {
       throw new NotFoundException('Schema not found');
     }
 
-    return schema;
+    // Ensure fields are properly formatted as arrays
+    return {
+      ...schema,
+      fields: this.normalizeFields(schema.fields),
+    };
   }
 
   /**
@@ -142,27 +211,37 @@ export class ProjectSchemasService {
       throw new NotFoundException('Schema not found');
     }
 
-    // If fields are being updated, validate them
+    // If fields are being updated, normalize and validate them
+    let normalizedFields = updateDto.fields;
     if (updateDto.fields) {
-      this.validateFields(updateDto.fields);
+      normalizedFields = Array.isArray(updateDto.fields) 
+        ? updateDto.fields 
+        : this.normalizeFields(updateDto.fields);
+      this.validateFields(normalizedFields);
       
       // TODO: In production, implement ALTER TABLE logic to modify physical table
       // For now, we only update metadata
     }
 
-    return this.prisma.projectSchema.update({
+    const updatedSchema = await this.prisma.projectSchema.update({
       where: { id: schemaId },
       data: {
         displayName: updateDto.displayName,
-        fields: updateDto.fields as any,
+        fields: normalizedFields as any,
         enableRLS: updateDto.enableRLS,
         policies: updateDto.policies as any,
         enableRealtime: updateDto.enableRealtime,
         requireAuth: updateDto.requireAuth,
         rateLimit: updateDto.rateLimit,
         metadata: updateDto.metadata as any,
-      },
+      } as any,
     });
+
+    // Return schema with normalized fields
+    return {
+      ...updatedSchema,
+      fields: this.normalizeFields(updatedSchema.fields),
+    };
   }
 
   /**
@@ -635,7 +714,7 @@ export class ProjectSchemasService {
         data: {
           queryCount: { increment: 1 },
           lastQueryAt: new Date(),
-        },
+        } as any,
       });
     } catch (error) {
       // Silently fail - statistics update shouldn't break the query

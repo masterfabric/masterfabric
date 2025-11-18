@@ -153,12 +153,49 @@ export interface ToastItem {
 }
 
 interface ToastContainerProps {
-  toasts: ToastItem[];
-  onRemove: (id: string) => void;
+  toasts?: ToastItem[];
+  onRemove?: (id: string) => void;
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
 }
 
-export function ToastContainer({ toasts, onRemove, position = 'top-right' }: ToastContainerProps) {
+// Global toast state
+let globalToasts: ToastItem[] = [];
+let globalToastListeners: Array<() => void> = [];
+
+const notifyListeners = () => {
+  globalToastListeners.forEach(listener => listener());
+};
+
+export function ToastContainer({ toasts, onRemove, position = 'top-right' }: ToastContainerProps = {}) {
+  const [internalToasts, setInternalToasts] = useState<ToastItem[]>([]);
+
+  useEffect(() => {
+    // Use provided toasts or global toasts
+    const activeToasts = toasts !== undefined ? toasts : globalToasts;
+    setInternalToasts(activeToasts);
+
+    // Subscribe to global toast updates if using global state
+    if (toasts === undefined) {
+      const listener = () => {
+        setInternalToasts([...globalToasts]);
+      };
+      globalToastListeners.push(listener);
+      return () => {
+        globalToastListeners = globalToastListeners.filter(l => l !== listener);
+      };
+    }
+  }, [toasts]);
+
+  const handleRemove = (id: string) => {
+    if (onRemove) {
+      onRemove(id);
+    } else {
+      // Remove from global state
+      globalToasts = globalToasts.filter(t => t.id !== id);
+      notifyListeners();
+    }
+  };
+
   const positionClasses = {
     'top-right': 'top-4 right-4',
     'top-left': 'top-4 left-4',
@@ -168,7 +205,9 @@ export function ToastContainer({ toasts, onRemove, position = 'top-right' }: Toa
     'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2',
   };
 
-  if (toasts.length === 0) {
+  const displayToasts = toasts !== undefined ? toasts : internalToasts;
+
+  if (!displayToasts || displayToasts.length === 0) {
     return null;
   }
 
@@ -176,7 +215,7 @@ export function ToastContainer({ toasts, onRemove, position = 'top-right' }: Toa
     <div
       className={`fixed ${positionClasses[position]} z-50 flex flex-col gap-2 max-w-md w-full px-4 pointer-events-none`}
     >
-      {toasts.map((toast) => (
+      {displayToasts.map((toast) => (
         <div key={toast.id} className="pointer-events-auto">
           <Toast
             variant={toast.variant}
@@ -184,7 +223,7 @@ export function ToastContainer({ toasts, onRemove, position = 'top-right' }: Toa
             description={toast.description}
             duration={toast.duration}
             action={toast.action}
-            onClose={() => onRemove(toast.id)}
+            onClose={() => handleRemove(toast.id)}
           />
         </div>
       ))}
@@ -198,12 +237,19 @@ export function useToast() {
 
   const addToast = (toast: Omit<ToastItem, 'id'>) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setToasts((prev) => [...prev, { ...toast, id }]);
+    const newToast = { ...toast, id };
+    setToasts((prev) => [...prev, newToast]);
+    // Also add to global state for ToastContainer
+    globalToasts = [...globalToasts, newToast];
+    notifyListeners();
     return id;
   };
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    // Also remove from global state
+    globalToasts = globalToasts.filter(t => t.id !== id);
+    notifyListeners();
   };
 
   const showSuccess = (title: string, description?: string, duration?: number) => {

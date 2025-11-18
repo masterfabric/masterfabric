@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { gql } from '@apollo/client';
 import { Button } from '@/components/ui/button';
 import { apolloClient } from '@/lib/graphql';
+import { useToast } from '@/components/ui/toast';
 
 interface SchemaTestDrawerProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export function SchemaTestDrawer({ isOpen, onClose, projectId, schema }: SchemaT
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestLogs, setRequestLogs] = useState<Array<{timestamp: string; type: 'request' | 'response' | 'error'; data: any}>>([]);
+  const toast = useToast();
 
   // Generate example queries based on schema
   const generateExampleQuery = () => {
@@ -102,12 +105,14 @@ export function SchemaTestDrawer({ isOpen, onClose, projectId, schema }: SchemaT
   const handleExecuteRaw = async () => {
     if (!queryText.trim()) {
       setError('Please enter a query or mutation');
+      toast.showError('Validation Error', 'Please enter a query or mutation');
       return;
     }
 
     setLoading(true);
     setError(null);
     setResponse(null);
+    const timestamp = new Date().toISOString();
 
     try {
       let parsedVariables: any = {};
@@ -115,34 +120,88 @@ export function SchemaTestDrawer({ isOpen, onClose, projectId, schema }: SchemaT
         try {
           parsedVariables = JSON.parse(variables);
         } catch (e) {
-          setError('Invalid JSON in variables');
+          const errorMsg = 'Invalid JSON in variables';
+          setError(errorMsg);
+          setRequestLogs(prev => [...prev, {
+            timestamp,
+            type: 'error',
+            data: { message: errorMsg, details: e instanceof Error ? e.message : 'Unknown error' }
+          }]);
+          toast.showError('Invalid JSON', 'Please check your variables JSON syntax');
           setLoading(false);
           return;
         }
       }
 
+      // Log request
+      const requestLog = {
+        timestamp,
+        type: 'request' as const,
+        data: {
+          query: queryText,
+          variables: parsedVariables,
+          type: queryType
+        }
+      };
+      setRequestLogs(prev => [...prev, requestLog]);
+      console.log('GraphQL Request:', requestLog);
+
       // Execute raw GraphQL query/mutation
       const isMutation = queryText.trim().toLowerCase().startsWith('mutation');
       
+      let result: any;
       if (isMutation) {
-        const result = await apolloClient.mutate({
+        result = await apolloClient.mutate({
           mutation: gql(queryText),
           variables: parsedVariables,
         });
-        setResponse(result.data);
       } else {
-        const result = await apolloClient.query({
+        result = await apolloClient.query({
           query: gql(queryText),
           variables: parsedVariables,
         });
-        setResponse(result.data);
       }
+
+      // Log response
+      const responseLog = {
+        timestamp: new Date().toISOString(),
+        type: 'response' as const,
+        data: result.data
+      };
+      setRequestLogs(prev => [...prev, responseLog]);
+      console.log('GraphQL Response:', responseLog);
+      
+      setResponse(result.data);
+      toast.showSuccess('Query executed', 'GraphQL query executed successfully');
     } catch (err: any) {
       console.error('GraphQL Error:', err);
-      setError(err.message || 'An error occurred');
-      if (err.graphQLErrors && err.graphQLErrors.length > 0) {
-        setError(err.graphQLErrors[0].message);
-      }
+      
+      const errorDetails = {
+        message: err.message || 'An error occurred',
+        graphQLErrors: err.graphQLErrors || [],
+        networkError: err.networkError ? {
+          message: err.networkError.message,
+          statusCode: err.networkError.statusCode
+        } : null,
+        stack: err.stack
+      };
+
+      const errorMessage = err.graphQLErrors && err.graphQLErrors.length > 0
+        ? err.graphQLErrors[0].message
+        : err.message || 'An error occurred';
+
+      setError(errorMessage);
+      
+      // Log error
+      const errorLog = {
+        timestamp: new Date().toISOString(),
+        type: 'error' as const,
+        data: errorDetails
+      };
+      setRequestLogs(prev => [...prev, errorLog]);
+      console.error('GraphQL Error Details:', errorLog);
+      
+      toast.showError('Query failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -205,7 +264,7 @@ export function SchemaTestDrawer({ isOpen, onClose, projectId, schema }: SchemaT
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
               placeholder={`Enter your ${queryType} here...`}
-              className="w-full h-48 px-3 py-2 border rounded-md font-mono text-sm"
+              className="w-full h-48 px-3 py-2 border rounded-md font-mono text-sm bg-background text-foreground"
             />
           </div>
 
@@ -218,7 +277,7 @@ export function SchemaTestDrawer({ isOpen, onClose, projectId, schema }: SchemaT
               value={variables}
               onChange={(e) => setVariables(e.target.value)}
               placeholder='{"input": {"tableName": "users", "limit": 10}}'
-              className="w-full h-32 px-3 py-2 border rounded-md font-mono text-sm"
+              className="w-full h-32 px-3 py-2 border rounded-md font-mono text-sm bg-background text-foreground"
             />
           </div>
 
@@ -255,17 +314,84 @@ export function SchemaTestDrawer({ isOpen, onClose, projectId, schema }: SchemaT
             </div>
           )}
 
+          {/* Request Logs */}
+          {requestLogs.length > 0 && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Request Logs</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRequestLogs([])}
+                >
+                  Clear Logs
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {requestLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-md text-xs font-mono ${
+                      log.type === 'error'
+                        ? 'bg-destructive/10 border border-destructive/20'
+                        : log.type === 'response'
+                        ? 'bg-green-500/10 border border-green-500/20'
+                        : 'bg-muted border border-border'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-semibold ${
+                        log.type === 'error' ? 'text-destructive' : 
+                        log.type === 'response' ? 'text-green-600 dark:text-green-400' : 
+                        'text-foreground'
+                      }`}>
+                        {log.type === 'request' ? '→ Request' : log.type === 'response' ? '← Response' : '✕ Error'}
+                      </span>
+                      <span className="text-muted-foreground text-[10px]">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <pre className="text-[10px] overflow-auto mt-1">
+                      {JSON.stringify(log.data, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Schema Info */}
           <div className="mt-6 p-4 bg-muted rounded-md">
             <h3 className="text-sm font-medium mb-2">Schema Fields</h3>
-            <div className="space-y-1">
-              {schema.fields.map((field: any, idx: number) => (
-                <div key={idx} className="text-xs">
-                  <code className="bg-background px-1 py-0.5 rounded">{field.name}</code>
-                  <span className="text-muted-foreground ml-2">: {field.type}</span>
-                  {field.required && <span className="text-muted-foreground ml-1">(required)</span>}
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-1.5 max-w-full">
+              {(() => {
+                // Handle different field formats (array or object)
+                let fieldsArray: any[] = [];
+                if (Array.isArray(schema.fields)) {
+                  fieldsArray = schema.fields;
+                } else if (schema.fields && typeof schema.fields === 'object') {
+                  // Convert object to array
+                  fieldsArray = Object.entries(schema.fields).map(([name, field]: [string, any]) => ({
+                    name,
+                    type: typeof field === 'string' ? field : field?.type || 'string',
+                    required: field?.required || false,
+                    unique: field?.unique || false,
+                  }));
+                }
+                
+                return fieldsArray.length > 0 ? (
+                  fieldsArray.map((field: any, idx: number) => (
+                    <div key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 bg-background rounded border border-border/50 shrink-0">
+                      <code className="text-xs font-medium text-foreground whitespace-nowrap">{field.name || 'unnamed'}</code>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">: {field.type || 'string'}</span>
+                      {field.required && <span className="text-xs text-blue-600 dark:text-blue-400 whitespace-nowrap">req</span>}
+                      {field.unique && <span className="text-xs text-green-600 dark:text-green-400 whitespace-nowrap">uniq</span>}
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">No fields defined</span>
+                );
+              })()}
             </div>
           </div>
         </div>

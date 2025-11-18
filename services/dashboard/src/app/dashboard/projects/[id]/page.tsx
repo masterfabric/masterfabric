@@ -3,12 +3,14 @@
 // Force dynamic rendering to prevent static generation issues with Apollo Client
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SchemaTestDrawer } from '@/components/SchemaTestDrawer';
+import { useToast, ToastContainer } from '@/components/ui/toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { 
   GET_PROJECT, 
   GET_PROJECT_API_KEYS, 
@@ -106,6 +108,24 @@ export default function ProjectDetailPage() {
   const [updatingSchema, setUpdatingSchema] = useState(false);
   const [testDrawerOpen, setTestDrawerOpen] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<ProjectSchema | null>(null);
+  const editSchemaRef = React.useRef<HTMLDivElement>(null);
+  
+  // Confirmation dialogs state
+  const [confirmDeleteApiKey, setConfirmDeleteApiKey] = useState<string | null>(null);
+  const [confirmDeleteTenantUser, setConfirmDeleteTenantUser] = useState<string | null>(null);
+  const [confirmDeleteSchema, setConfirmDeleteSchema] = useState<string | null>(null);
+  const [confirmGenerateJwt, setConfirmGenerateJwt] = useState(false);
+  
+  const toast = useToast();
+
+  // Scroll to edit form when it becomes visible
+  useEffect(() => {
+    if (showEditSchema && editSchemaRef.current && activeTab === 'schemas') {
+      setTimeout(() => {
+        editSchemaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showEditSchema, activeTab]);
 
   const { data: projectData, loading: projectLoading, refetch: refetchProject } = useQuery(GET_PROJECT, {
     variables: { id: projectId },
@@ -142,6 +162,16 @@ export default function ProjectDetailPage() {
   const schemas = schemasData?.projectSchemas || [];
   const loading = projectLoading;
 
+  // Debug: Log schemas data when it changes
+  useEffect(() => {
+    if (schemasData?.projectSchemas) {
+      console.log('Schemas loaded:', schemasData.projectSchemas);
+      schemasData.projectSchemas.forEach((schema: ProjectSchema, idx: number) => {
+        console.log(`Schema ${idx} (${schema.tableName}) fields:`, schema.fields, 'Type:', typeof schema.fields);
+      });
+    }
+  }, [schemasData]);
+
   // API Key handlers
   const handleCreateApiKey = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,26 +189,32 @@ export default function ProjectDetailPage() {
         setShowCreateKey(false);
         refetchApiKeys();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating API key:', error);
-      alert('Failed to create API key');
+      toast.showError('Failed to create API key', error.message || 'An error occurred');
     } finally {
       setCreatingKey(false);
     }
   };
 
   const handleDeleteApiKey = async (keyId: string) => {
-    if (!window.confirm('Are you sure you want to delete this API key?')) return;
+    setConfirmDeleteApiKey(keyId);
+  };
 
+  const confirmDeleteApiKeyAction = async () => {
+    if (!confirmDeleteApiKey) return;
+    const keyId = confirmDeleteApiKey;
     setDeletingKeyId(keyId);
     try {
       await deleteApiKey({ variables: { id: keyId } });
       refetchApiKeys();
+      toast.showSuccess('API key deleted', 'The API key has been successfully deleted');
     } catch (error: any) {
       console.error('Error deleting API key:', error);
-      alert(`Failed to delete API key: ${error.message}`);
+      toast.showError('Failed to delete API key', error.message || 'An error occurred');
     } finally {
       setDeletingKeyId(null);
+      setConfirmDeleteApiKey(null);
     }
   };
 
@@ -203,24 +239,31 @@ export default function ProjectDetailPage() {
       setNewTenantPassword('');
       setShowCreateTenantUser(false);
       refetchTenantUsers();
-      alert('Tenant user created successfully!');
+      toast.showSuccess('Tenant user created', 'The tenant user has been successfully created');
     } catch (error: any) {
       console.error('Error creating tenant user:', error);
-      alert(`Failed to create tenant user: ${error.message}`);
+      toast.showError('Failed to create tenant user', error.message || 'An error occurred');
     } finally {
       setCreatingTenantUser(false);
     }
   };
 
   const handleDeleteTenantUser = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to delete this tenant user?')) return;
+    setConfirmDeleteTenantUser(userId);
+  };
 
+  const confirmDeleteTenantUserAction = async () => {
+    if (!confirmDeleteTenantUser) return;
+    const userId = confirmDeleteTenantUser;
     try {
       await deleteTenantUser({ variables: { projectId, userId } });
       refetchTenantUsers();
+      toast.showSuccess('Tenant user deleted', 'The tenant user has been successfully deleted');
     } catch (error: any) {
       console.error('Error deleting tenant user:', error);
-      alert(`Failed to delete tenant user: ${error.message}`);
+      toast.showError('Failed to delete tenant user', error.message || 'An error occurred');
+    } finally {
+      setConfirmDeleteTenantUser(null);
     }
   };
 
@@ -231,18 +274,18 @@ export default function ProjectDetailPage() {
     // Validate table name format (lowercase, letters, numbers, underscores only, must start with letter)
     const tableNameRegex = /^[a-z][a-z0-9_]*$/;
     if (!newSchemaName.trim()) {
-      alert('Table name is required');
+      toast.showError('Validation Error', 'Table name is required');
       return;
     }
     if (!tableNameRegex.test(newSchemaName.trim())) {
-      alert('Table name must start with a lowercase letter and contain only lowercase letters, numbers, and underscores');
+      toast.showError('Validation Error', 'Table name must start with a lowercase letter and contain only lowercase letters, numbers, and underscores');
       return;
     }
     
     // Validate fields
     const validFields = newSchemaFields.filter(f => f.name.trim());
     if (validFields.length === 0) {
-      alert('At least one field is required');
+      toast.showError('Validation Error', 'At least one field is required');
       return;
     }
     
@@ -250,37 +293,46 @@ export default function ProjectDetailPage() {
     const fieldNameRegex = /^[a-z][a-z0-9_]*$/i;
     for (const field of validFields) {
       if (!field.name.trim()) {
-        alert('All fields must have a name');
+        toast.showError('Validation Error', 'All fields must have a name');
         return;
       }
       if (!fieldNameRegex.test(field.name.trim())) {
-        alert(`Field name "${field.name}" is invalid. Must start with a letter and contain only letters, numbers, and underscores`);
+        toast.showError('Validation Error', `Field name "${field.name}" is invalid. Must start with a letter and contain only letters, numbers, and underscores`);
         return;
       }
     }
 
     setCreatingSchema(true);
     try {
-      await createProjectSchema({
+      const fieldsToSend = validFields.map(f => ({ 
+        name: f.name.trim().toLowerCase(), 
+        type: f.type, 
+        required: false 
+      }));
+      
+      console.log('Creating schema with fields:', fieldsToSend);
+      
+      const result = await createProjectSchema({
         variables: {
           projectId,
           input: {
             tableName: newSchemaName.trim().toLowerCase(),
             displayName: newSchemaName.trim(),
-            fields: validFields.map(f => ({ 
-              name: f.name.trim().toLowerCase(), 
-              type: f.type, 
-              required: false 
-            })),
+            fields: fieldsToSend,
           },
         },
       });
+      
+      console.log('Schema created, response:', result.data?.createProjectSchema);
 
       setNewSchemaName('');
       setNewSchemaFields([{name: '', type: 'string'}]);
       setShowCreateSchema(false);
-      refetchSchemas();
-      alert('Schema created successfully!');
+      // Wait a bit before refetching to ensure backend has processed
+      setTimeout(() => {
+        refetchSchemas();
+      }, 500);
+      toast.showSuccess('Schema created', 'The schema has been successfully created');
     } catch (error: any) {
       console.error('Error creating schema:', error);
       console.error('Full error object:', JSON.stringify(error, null, 2));
@@ -312,7 +364,7 @@ export default function ProjectDetailPage() {
         errorMessage = error.message;
       }
       
-      alert(`Failed to create schema: ${errorMessage}`);
+      toast.showError('Failed to create schema', errorMessage);
     } finally {
       setCreatingSchema(false);
     }
@@ -341,43 +393,54 @@ export default function ProjectDetailPage() {
       setShowEditSchema(false);
       setEditingSchema(null);
       refetchSchemas();
-      alert('Schema updated successfully!');
+      toast.showSuccess('Schema updated', 'The schema has been successfully updated');
     } catch (error: any) {
       console.error('Error updating schema:', error);
-      alert(`Failed to update schema: ${error.message}`);
+      toast.showError('Failed to update schema', error.message || 'An error occurred');
     } finally {
       setUpdatingSchema(false);
     }
   };
 
   const handleDeleteSchema = async (schemaId: string) => {
-    if (!window.confirm('Are you sure you want to delete this schema? This will also delete the table and all its data.')) return;
+    setConfirmDeleteSchema(schemaId);
+  };
 
+  const confirmDeleteSchemaAction = async () => {
+    if (!confirmDeleteSchema) return;
+    const schemaId = confirmDeleteSchema;
     try {
       await deleteProjectSchema({ variables: { projectId, schemaId } });
       refetchSchemas();
+      toast.showSuccess('Schema deleted', 'The schema and its data have been successfully deleted');
     } catch (error: any) {
       console.error('Error deleting schema:', error);
-      alert(`Failed to delete schema: ${error.message}`);
+      toast.showError('Failed to delete schema', error.message || 'An error occurred');
+    } finally {
+      setConfirmDeleteSchema(null);
     }
   };
 
   const handleGenerateJwtSecret = async () => {
-    if (!window.confirm('Generate a new JWT secret? This will invalidate all existing user tokens.')) return;
+    setConfirmGenerateJwt(true);
+  };
 
+  const confirmGenerateJwtAction = async () => {
     try {
       await generateJwtSecret({ variables: { projectId } });
       refetchProject();
-      alert('JWT secret generated successfully!');
+      toast.showSuccess('JWT secret generated', 'A new JWT secret has been generated. All existing tokens will be invalidated.');
     } catch (error: any) {
       console.error('Error generating JWT secret:', error);
-      alert(`Failed to generate JWT secret: ${error.message}`);
+      toast.showError('Failed to generate JWT secret', error.message || 'An error occurred');
+    } finally {
+      setConfirmGenerateJwt(false);
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    toast.showSuccess('Copied', 'Text copied to clipboard');
   };
 
   if (loading) {
@@ -492,7 +555,7 @@ export default function ProjectDetailPage() {
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
                       placeholder="production-api"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
                       disabled={creatingKey}
                     />
                   </div>
@@ -579,7 +642,7 @@ export default function ProjectDetailPage() {
                       value={newTenantEmail}
                       onChange={(e) => setNewTenantEmail(e.target.value)}
                       placeholder="user@example.com"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
                       disabled={creatingTenantUser}
                     />
                   </div>
@@ -590,7 +653,7 @@ export default function ProjectDetailPage() {
                       value={newTenantPassword}
                       onChange={(e) => setNewTenantPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
                       disabled={creatingTenantUser}
                     />
                   </div>
@@ -661,7 +724,7 @@ export default function ProjectDetailPage() {
                       value={newSchemaName}
                       onChange={(e) => setNewSchemaName(e.target.value)}
                       placeholder="users, posts, etc."
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
                       disabled={creatingSchema}
                     />
                   </div>
@@ -679,7 +742,7 @@ export default function ProjectDetailPage() {
                             setNewSchemaFields(updated);
                           }}
                           placeholder="Field name"
-                          className="flex-1 px-3 py-2 border rounded-md"
+                          className="flex-1 px-3 py-2 border rounded-md bg-background text-foreground"
                         />
                         <select
                           value={field.type}
@@ -688,7 +751,7 @@ export default function ProjectDetailPage() {
                             updated[idx].type = e.target.value;
                             setNewSchemaFields(updated);
                           }}
-                          className="px-3 py-2 border rounded-md"
+                          className="px-3 py-2 border rounded-md bg-background text-foreground"
                         >
                           <option value="string">String</option>
                           <option value="number">Number</option>
@@ -743,14 +806,76 @@ export default function ProjectDetailPage() {
                             <p className="font-medium">{schema.displayName || schema.tableName}</p>
                             <code className="text-xs bg-muted px-2 py-1 rounded">{schema.tableName}</code>
                           </div>
-                          <div className="mt-2 space-y-1">
-                            {schema.fields.map((field: any, idx: number) => (
-                              <div key={idx} className="text-sm text-muted-foreground">
-                                <code>{field.name}</code>: {field.type}
-                                {field.required && ' (required)'}
-                                {field.unique && ' (unique)'}
-                              </div>
-                            ))}
+                          <div className="mt-3">
+                            <h4 className="text-xs font-semibold text-foreground mb-2 uppercase tracking-wide">Fields</h4>
+                            <div className="flex flex-wrap gap-1.5 max-w-full">
+                              {(() => {
+                                // Handle different field formats (array, object, or JSON string)
+                                let fieldsArray: any[] = [];
+                                
+                                try {
+                                  let fieldsData = schema.fields;
+                                  
+                                  // If fields is a string, try to parse it as JSON
+                                  if (typeof fieldsData === 'string') {
+                                    try {
+                                      fieldsData = JSON.parse(fieldsData);
+                                    } catch (e) {
+                                      console.warn('Failed to parse fields JSON:', e);
+                                    }
+                                  }
+                                  
+                                  // Handle array format
+                                  if (Array.isArray(fieldsData)) {
+                                    fieldsArray = fieldsData.map((field: any) => {
+                                      // Handle both {name, type} and direct field objects
+                                      if (typeof field === 'object' && field !== null) {
+                                        return {
+                                          name: field.name || field.fieldName || Object.keys(field)[0] || 'unnamed',
+                                          type: field.type || 'string',
+                                          required: field.required || false,
+                                          unique: field.unique || false,
+                                        };
+                                      }
+                                      return { name: 'unnamed', type: 'string' };
+                                    });
+                                  }
+                                  // Handle object format {fieldName: {type, ...}}
+                                  else if (fieldsData && typeof fieldsData === 'object') {
+                                    fieldsArray = Object.entries(fieldsData).map(([name, field]: [string, any]) => ({
+                                      name: name,
+                                      type: typeof field === 'string' ? field : (field?.type || 'string'),
+                                      required: field?.required || false,
+                                      unique: field?.unique || false,
+                                    }));
+                                  }
+                                  
+                                  // Debug logging
+                                  if (fieldsArray.length === 0 && schema.fields) {
+                                    console.log('Schema fields structure:', {
+                                      raw: schema.fields,
+                                      type: typeof schema.fields,
+                                      parsed: fieldsData,
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error('Error parsing schema fields:', error, schema.fields);
+                                }
+                                
+                                return fieldsArray.length > 0 ? (
+                                  fieldsArray.map((field: any, idx: number) => (
+                                    <div key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded border border-border/50 shrink-0">
+                                      <code className="text-xs font-medium text-foreground bg-background px-1 py-0.5 rounded whitespace-nowrap">{field.name || 'unnamed'}</code>
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">{field.type || 'string'}</span>
+                                      {field.required && <span className="text-xs text-blue-600 dark:text-blue-400 whitespace-nowrap">req</span>}
+                                      {field.unique && <span className="text-xs text-green-600 dark:text-green-400 whitespace-nowrap">uniq</span>}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">No fields defined</span>
+                                );
+                              })()}
+                            </div>
                           </div>
                           <div className="flex gap-4 text-xs text-muted-foreground mt-2">
                             <span>RLS: {schema.enableRLS ? '✓' : '✗'}</span>
@@ -801,6 +926,7 @@ export default function ProjectDetailPage() {
 
           {/* Edit Schema Modal */}
           {showEditSchema && editingSchema && (
+            <div ref={editSchemaRef}>
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Edit Schema: {editingSchema.displayName || editingSchema.tableName}</CardTitle>
@@ -815,7 +941,7 @@ export default function ProjectDetailPage() {
                       value={editingSchema.displayName || ''}
                       onChange={(e) => setEditingSchema({ ...editingSchema, displayName: e.target.value })}
                       placeholder="Schema display name"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
                       disabled={updatingSchema}
                     />
                   </div>
@@ -844,7 +970,7 @@ export default function ProjectDetailPage() {
                         rateLimit: e.target.value ? parseInt(e.target.value) : undefined 
                       })}
                       placeholder="Leave empty for no limit"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
                       disabled={updatingSchema}
                       min="1"
                     />
@@ -912,6 +1038,7 @@ export default function ProjectDetailPage() {
                 </form>
               </CardContent>
             </Card>
+            </div>
           )}
         </div>
       )}
@@ -974,6 +1101,51 @@ export default function ProjectDetailPage() {
           schema={selectedSchema}
         />
       )}
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        open={confirmDeleteApiKey !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteApiKey(null)}
+        title="Delete API Key"
+        description="Are you sure you want to delete this API key? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={confirmDeleteApiKeyAction}
+        loading={deletingKeyId !== null}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteTenantUser !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteTenantUser(null)}
+        title="Delete Tenant User"
+        description="Are you sure you want to delete this tenant user? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={confirmDeleteTenantUserAction}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteSchema !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteSchema(null)}
+        title="Delete Schema"
+        description="Are you sure you want to delete this schema? This will also delete the table and all its data. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={confirmDeleteSchemaAction}
+      />
+
+      <ConfirmDialog
+        open={confirmGenerateJwt}
+        onOpenChange={(open) => !open && setConfirmGenerateJwt(false)}
+        title="Generate New JWT Secret"
+        description="Generate a new JWT secret? This will invalidate all existing user tokens. Users will need to sign in again."
+        confirmLabel="Generate"
+        variant="default"
+        onConfirm={confirmGenerateJwtAction}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </div>
   );
 }

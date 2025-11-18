@@ -34,10 +34,14 @@
   input, textarea, select {
     border: 1px solid hsl(0 0% 20%) !important;
     border-radius: 0 !important;
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   input:focus, textarea:focus, select:focus {
     border-color: hsl(0 0% 0%) !important;
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   body {

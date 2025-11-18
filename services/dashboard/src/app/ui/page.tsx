@@ -19,6 +19,7 @@ import { MagicLink } from '@/components/ui/magic-link';
 import { QRCodeSignIn } from '@/components/ui/qr-code-sign-in';
 import { Toast, useToast, ToastContainer } from '@/components/ui/toast';
 import { ProgressCard, ProcessingRequestCard, ProgressCardGroup } from '@/components/ui/progress-card';
+import { Avatar, AvatarGroup } from '@/components/ui/avatar';
 
 interface TestResult {
   success: boolean;
@@ -458,7 +459,7 @@ export default function TestPage() {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-light text-foreground mb-4">MasterFabric Developer Test Suite</h1>
+          <h1 className="text-4xl font-light text-foreground mb-4">MasterFabric Developer Suite</h1>
           <p className="text-muted-foreground">Comprehensive testing and component showcase for developers</p>
         </div>
 
@@ -1385,6 +1386,254 @@ export default function TestPage() {
                         >
                           Smooth Progress (1% increments)
                         </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Avatar Showcase */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Avatar Components</CardTitle>
+                <CardDescription>Circle avatar components with image support, initials fallback, and status indicators</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Size Variants</h4>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar size="sm" name="John Doe" />
+                      <span className="text-xs text-muted-foreground">sm (32px)</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar size="md" name="Jane Smith" />
+                      <span className="text-xs text-muted-foreground">md (40px)</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar size="lg" name="Bob Johnson" />
+                      <span className="text-xs text-muted-foreground">lg (48px)</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar size="xl" name="Alice Williams" />
+                      <span className="text-xs text-muted-foreground">xl (64px)</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar size="2xl" name="Charlie Brown" />
+                      <span className="text-xs text-muted-foreground">2xl (80px)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Status Indicators</h4>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="Online User" status="online" size="lg" />
+                      <span className="text-xs text-muted-foreground">Online</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="Away User" status="away" size="lg" />
+                      <span className="text-xs text-muted-foreground">Away</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="Offline User" status="offline" size="lg" />
+                      <span className="text-xs text-muted-foreground">Offline</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="No Status" size="lg" />
+                      <span className="text-xs text-muted-foreground">No Status</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Initials Fallback</h4>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="John Doe" size="lg" />
+                      <span className="text-xs text-muted-foreground">Two words: JD</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="Alice" size="lg" />
+                      <span className="text-xs text-muted-foreground">Single word: A</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar name="Mary Jane Watson" size="lg" />
+                      <span className="text-xs text-muted-foreground">Multiple words: MW</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar fallback="user@example.com" size="lg" />
+                      <span className="text-xs text-muted-foreground">Email fallback: U</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">With Images</h4>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar 
+                        src="https://api.dicebear.com/7.x/avataaars/svg?seed=John" 
+                        alt="John" 
+                        name="John Doe"
+                        size="lg"
+                      />
+                      <span className="text-xs text-muted-foreground">With Image</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar 
+                        src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" 
+                        alt="Jane" 
+                        name="Jane Smith"
+                        status="online"
+                        size="lg"
+                      />
+                      <span className="text-xs text-muted-foreground">Image + Status</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Avatar 
+                        src="invalid-url" 
+                        alt="Invalid" 
+                        name="Fallback User"
+                        size="lg"
+                      />
+                      <span className="text-xs text-muted-foreground">Image Error Fallback</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Avatar Group</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Basic Group</Label>
+                      <AvatarGroup>
+                        <Avatar name="User One" size="md" />
+                        <Avatar name="User Two" size="md" />
+                        <Avatar name="User Three" size="md" />
+                        <Avatar name="User Four" size="md" />
+                      </AvatarGroup>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Group with Status</Label>
+                      <AvatarGroup>
+                        <Avatar name="Online User" size="md" status="online" />
+                        <Avatar name="Away User" size="md" status="away" />
+                        <Avatar name="Offline User" size="md" status="offline" />
+                        <Avatar name="Another User" size="md" />
+                      </AvatarGroup>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Group with Max Limit</Label>
+                      <AvatarGroup max={3}>
+                        <Avatar name="User One" size="md" />
+                        <Avatar name="User Two" size="md" />
+                        <Avatar name="User Three" size="md" />
+                        <Avatar name="User Four" size="md" />
+                        <Avatar name="User Five" size="md" />
+                        <Avatar name="User Six" size="md" />
+                      </AvatarGroup>
+                      <p className="text-xs text-muted-foreground mt-2">Showing first 3 avatars, +3 more indicator</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Large Group</Label>
+                      <AvatarGroup max={4}>
+                        <Avatar name="Alice" size="lg" status="online" />
+                        <Avatar name="Bob" size="lg" status="away" />
+                        <Avatar name="Charlie" size="lg" status="offline" />
+                        <Avatar name="Diana" size="lg" />
+                        <Avatar name="Eve" size="lg" />
+                        <Avatar name="Frank" size="lg" />
+                        <Avatar name="Grace" size="lg" />
+                      </AvatarGroup>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Loading State (Cupertino Style)</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Loading Indicators</Label>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex flex-col items-center gap-2">
+                          <Avatar name="Loading User" loading size="sm" />
+                          <span className="text-xs text-muted-foreground">Small</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-2">
+                          <Avatar name="Loading User" loading size="md" />
+                          <span className="text-xs text-muted-foreground">Medium</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-2">
+                          <Avatar name="Loading User" loading size="lg" />
+                          <span className="text-xs text-muted-foreground">Large</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-2">
+                          <Avatar name="Loading User" loading size="xl" />
+                          <span className="text-xs text-muted-foreground">Extra Large</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-2">
+                          <Avatar name="Loading User" loading size="2xl" />
+                          <span className="text-xs text-muted-foreground">2X Large</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Loading with Images</Label>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <Avatar 
+                          src="https://api.dicebear.com/7.x/avataaars/svg?seed=Loading" 
+                          alt="Loading" 
+                          name="Loading User"
+                          loading
+                          size="lg"
+                        />
+                        <Avatar 
+                          name="Loading User"
+                          loading
+                          size="lg"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Loading in Groups</Label>
+                      <AvatarGroup>
+                        <Avatar name="User One" size="md" loading />
+                        <Avatar name="User Two" size="md" status="online" />
+                        <Avatar name="User Three" size="md" loading />
+                        <Avatar name="User Four" size="md" status="away" />
+                      </AvatarGroup>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Usage Examples</h4>
+                  <div className="space-y-4">
+                    <div className="p-4 border border-foreground/10 bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <Avatar name="Sarah Connor" status="online" size="lg" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Sarah Connor</p>
+                          <p className="text-xs text-muted-foreground">Online • Product Manager</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 border border-foreground/10 bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <AvatarGroup max={3}>
+                          <Avatar name="Team Member 1" size="md" status="online" />
+                          <Avatar name="Team Member 2" size="md" status="away" />
+                          <Avatar name="Team Member 3" size="md" />
+                          <Avatar name="Team Member 4" size="md" />
+                          <Avatar name="Team Member 5" size="md" />
+                        </AvatarGroup>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Development Team</p>
+                          <p className="text-xs text-muted-foreground">5 members</p>
+                        </div>
                       </div>
                     </div>
                   </div>
